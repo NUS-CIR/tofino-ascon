@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "api.h": "c",
+        "ascon.h": "c",
+        "printstate.h": "c"
+    }
+}
