@@ -4,11 +4,49 @@
 #else
 #include <tna.p4>
 #endif
-
+    
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 const bit<64> const_i =0xf0 ;
+
+#define perm(const_i) addition(const_i);\
+        substitution();\
+        start_sbox_0();\
+        start_sbox_1();\
+        end_sbox();\
+        copy_meta();\
+        diffusion_0_0();\
+        diffusion_1_0();\
+        diffusion_2_0();\
+        diffusion_3_0();\
+        diffusion_4_0();\
+        diffusion_5_0();\      
+        diffusion_0_1();\
+        diffusion_1_1();\
+        diffusion_2_1();\
+        diffusion_3_1();\
+        diffusion_4_1();\
+        diffusion_5_1();\
+        diffusion_0_2();\
+        diffusion_1_2();\
+        diffusion_2_2();\
+        diffusion_3_2();\
+        diffusion_4_2();\
+        diffusion_5_2();\        
+        diffusion_0_3();\
+        diffusion_1_3();\
+        diffusion_2_3();\
+        diffusion_3_3();\
+        diffusion_4_3();\
+        diffusion_5_3();\
+        diffusion_0_4();\
+        diffusion_1_4();\
+        diffusion_2_4();\
+        diffusion_3_4();\
+        diffusion_4_4();\
+        diffusion_5_4();\
+
 
 header ethernet_h {
     bit<48>   dst_addr;
@@ -155,8 +193,10 @@ control MyIngress(
     
     action diffusion_1_0 () {
         // ROR(t.x[0], 19)
-        @in_hash { meta.p0[31:0] = meta.t0[50:19]; }
+        @in_hash { meta.p0[31:0] = meta.t0[50:19];
+         }
         // ROR(t.x[1], 61) 
+         @in_hash { meta.p1[31:0] = meta.t1[28:0]++ meta.t1[63:61]; }
     }
 
     action diffusion_2_0 () {

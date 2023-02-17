@@ -2,6 +2,9 @@
     "files.associations": {
         "api.h": "c",
         "ascon.h": "c",
-        "printstate.h": "c"
+        "printstate.h": "c",
+        "stdio.h": "c",
+        "constants.h": "c",
+        "round.h": "c"
     }
 }
