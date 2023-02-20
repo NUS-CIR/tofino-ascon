@@ -10,6 +10,14 @@
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 const bit<64> const_i =0xf0 ;
 
+//using custom ether_type for checking b/w a normal and a recirc packet
+typedef bit<16> ether_type_t;
+const bit<16> ETHERTYPE_TPID = 0x8100;
+const bit<16> ETHERTYPE_NORM = 0x8120;
+const bit<16> ETHERTYPE_RECIR = 0x8133;
+const bit<16> ETHERTYPE_IPV4 = 0x0800;
+
+
 header ethernet_h {
     bit<48>   dst_addr;
     bit<48>   src_addr;
@@ -22,11 +30,19 @@ header ascon_h {
     bit<64>   s2;
     bit<64>   s3;
     bit<64>   s4;
+    bit<16>   dest_port;
+    bit<8>    curr_round; 
 }
+
+// header ascon_meta_h{
+//     bit<16>   dest_port;
+//     bit<8>    curr_round; 
+// }
 
 struct my_ingress_headers_t {
     ethernet_h   ethernet;
     ascon_h      ascon;
+    // ascon_meta_h ascon_meta;
 }
 
 struct my_ingress_metadata_t {
@@ -72,12 +88,23 @@ parser MyIngressParser(packet_in        pkt,
     state parse_ethernet {
         pkt.extract(hdr.ethernet);
         transition parse_ascon;
+        // transition select(hdr.ethernet.ether_type){
+        //     ETHERTYPE_NORM:parse_ascon;
+        //     ETHERTYPE_RECIR:parse_ascon_meta;
+        //     default:accept;
+        // }
     }
 
     state parse_ascon {
         pkt.extract(hdr.ascon);
         transition accept;
     }
+    
+    // state parse_ascon_meta {
+    //     pkt.extract(hdr.ascon);
+    //     pkt.extract(hdr.ascon_meta);
+    //     transition accept;
+    // }
 }
 
     /***************** M A T C H - A C T I O N  *********************/
@@ -93,6 +120,23 @@ control MyIngress(
     inout ingress_intrinsic_metadata_for_tm_t        ig_tm_md)
 {   
     Hash<bit<64>>(HashAlgorithm_t.IDENTITY) copy0;// should be 256 if making use of Identity default hashing
+
+    action ascon_init(){
+        hdr.ascon.s0= 0xee9398aadb67f03d;
+        hdr.ascon.s1= 0x8bb21831c60f1002;   
+        hdr.ascon.s2= 0xb48a92db98d5da62;
+        hdr.ascon.s3= 0x43189921b8f8e3e8;
+        hdr.ascon.s4= 0x348fa5c9d525e140;
+    }
+    action first_pass(){
+		//first pass init
+
+		hdr.ascon.curr_round =0x0;
+        ascon_init();
+
+        // hdr.ascon_meta.setValid();
+		// routing_decision();
+	}
 
     action addition(bit<64> const_i) {
         hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;
@@ -135,19 +179,13 @@ control MyIngress(
         meta.u3 = meta.t3;
         meta.u4 = meta.t4;
     }
-//   /* linear diffusion layer */
-//   s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-//   s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-//   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-//   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-//   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
 
 
     action diffusion_0_0 () {
         // ROR(t.x[0], 19)
         @in_hash { 
             meta.p0[63:32] = meta.t0[18:0] ++ meta.t0[63:51]; 
-            meta.p1[63:32] = meta.t1[60:29]; 
+            // meta.p1[63:32] = meta.t1[60:29]; 
         }
         // ROR(t.x[1], 61) 
         
@@ -318,9 +356,44 @@ control MyIngress(
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
 
+    action do_recirculate(){
+        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
+        ig_tm_md.ucast_egress_port[6:0] = 0x6;
+    }
 
+    action clear_meta(){
+        meta.t0=0x0;
+        meta.t1=0x0;
+        meta.t2=0x0;
+        meta.t3=0x0;
+        meta.t4=0x0;
+
+        meta.u0=0x0;
+        meta.u1=0x0;
+        meta.u2=0x0;
+        meta.u3=0x0;
+        meta.u4=0x0;
+
+        meta.p0=0x0;
+        meta.p1=0x0;
+        meta.p2=0x0;
+        meta.p3=0x0;
+        meta.p4=0x0;
+
+        meta.q0=0x0;
+        meta.q1=0x0;
+        meta.q2=0x0;
+        meta.q3=0x0;
+        meta.q4=0x0;
+    }
 
     apply {
+        //non-recirc packet
+        if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
+            first_pass();
+        }
+
         // /* addition of round constant */
         // s->x[2] ^= C;
         addition(const_i);   //can even skip this if we can get the constants changing for every round
@@ -392,14 +465,14 @@ control MyIngress(
         diffusion_4_4();
         diffusion_5_4();
 
+        clear_meta();
 
-        // hdr.ascon.s0 = meta.t0;
-        hdr.ascon.s1 = meta.t1;
-        hdr.ascon.s2 = meta.t2;
-        hdr.ascon.s3 = meta.t3;
-        hdr.ascon.s4 = meta.t4;
-
-        ig_tm_md.ucast_egress_port = 1;
+        if(hdr.ascon.curr_round==11){
+            ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
+        }
+        else{
+            do_recirculate();
+        }
     }
 }
 
@@ -415,6 +488,7 @@ control MyIngressDeparser(packet_out pkt,
     apply {
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.ascon);
+        // pkt.emit(hdr.ascon_meta);
     }
 }
 

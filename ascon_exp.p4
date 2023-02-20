@@ -363,76 +363,86 @@ control MyIngress(
     apply {
         // /* addition of round constant */
         // s->x[2] ^= C;
-        addition(const_i);   //can even skip this if we can get the constants changing for every round
+        // addition(const_i);   //can even skip this if we can get the constants changing for every round
 
-        // /* printstate(" round constant", s); */
-        // /* substitution layer */
-        // s->x[0] ^= s->x[4];
-        // s->x[4] ^= s->x[3];
-        // s->x[2] ^= s->x[1];
-        substitution();
+        // // /* printstate(" round constant", s); */
+        // // /* substitution layer */
+        // // s->x[0] ^= s->x[4];
+        // // s->x[4] ^= s->x[3];
+        // // s->x[2] ^= s->x[1];
+        // substitution();
 
-        // /* start of keccak s-box */
-        // t.x[0] = s->x[0] ^ (~s->x[1] & s->x[2]);
-        // t.x[1] = s->x[1] ^ (~s->x[2] & s->x[3]);
-        // t.x[2] = s->x[2] ^ (~s->x[3] & s->x[4]);
-        // t.x[3] = s->x[3] ^ (~s->x[4] & s->x[0]);
-        // t.x[4] = s->x[4] ^ (~s->x[0] & s->x[1]);
-        start_sbox_0();
-        start_sbox_1();
+        // // /* start of keccak s-box */
+        // // t.x[0] = s->x[0] ^ (~s->x[1] & s->x[2]);
+        // // t.x[1] = s->x[1] ^ (~s->x[2] & s->x[3]);
+        // // t.x[2] = s->x[2] ^ (~s->x[3] & s->x[4]);
+        // // t.x[3] = s->x[3] ^ (~s->x[4] & s->x[0]);
+        // // t.x[4] = s->x[4] ^ (~s->x[0] & s->x[1]);
+        // start_sbox_0();
+        // start_sbox_1();
         
-        // /* end of keccak s-box */
-        // t.x[1] ^= t.x[0];
-        // t.x[0] ^= t.x[4];
-        // t.x[3] ^= t.x[2];
-        // t.x[2] = ~t.x[2];
-        end_sbox();
+        // // /* end of keccak s-box */
+        // // t.x[1] ^= t.x[0];
+        // // t.x[0] ^= t.x[4];
+        // // t.x[3] ^= t.x[2];
+        // // t.x[2] = ~t.x[2];
+        // end_sbox();
 
-        copy_meta();
+        // copy_meta();
         
-        // /* printstate(" substitution layer", &t); */
-        // /* linear diffusion layer */
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-        // s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-        // s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-        // s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-        diffusion_0_0();
-        diffusion_1_0();
-        diffusion_2_0();
-        diffusion_3_0();
-        diffusion_4_0();
-        diffusion_5_0();
+        // // /* printstate(" substitution layer", &t); */
+        // // /* linear diffusion layer */
+        // // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
+        // // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+        // // s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
+        // // s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
+        // // s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
+        // diffusion_0_0();
+        // diffusion_1_0();
+        // diffusion_2_0();
+        // diffusion_3_0();
+        // diffusion_4_0();
+        // diffusion_5_0();
                 
-        diffusion_0_1();
-        diffusion_1_1();
-        diffusion_2_1();
-        diffusion_3_1();
-        diffusion_4_1();
-        diffusion_5_1();
+        // diffusion_0_1();
+        // diffusion_1_1();
+        // diffusion_2_1();
+        // diffusion_3_1();
+        // diffusion_4_1();
+        // diffusion_5_1();
 
-        diffusion_0_2();
-        diffusion_1_2();
-        diffusion_2_2();
-        diffusion_3_2();
-        diffusion_4_2();
-        diffusion_5_2();
+        // diffusion_0_2();
+        // diffusion_1_2();
+        // diffusion_2_2();
+        // diffusion_3_2();
+        // diffusion_4_2();
+        // diffusion_5_2();
         
-        diffusion_0_3();
-        diffusion_1_3();
-        diffusion_2_3();
-        diffusion_3_3();
-        diffusion_4_3();
-        diffusion_5_3();
+        // diffusion_0_3();
+        // diffusion_1_3();
+        // diffusion_2_3();
+        // diffusion_3_3();
+        // diffusion_4_3();
+        // diffusion_5_3();
 
-        diffusion_0_4();
-        diffusion_1_4();
-        diffusion_2_4();
-        diffusion_3_4();
-        diffusion_4_4();
-        diffusion_5_4();
+        // diffusion_0_4();
+        // diffusion_1_4();
+        // diffusion_2_4();
+        // diffusion_3_4();
+        // diffusion_4_4();
+        // diffusion_5_4();
 
+        perm(const_i);
 
+        perm(const_i);
+
+        perm(const_i);
+
+        perm(const_i);
+
+        perm(const_i);
+
+        perm(const_i);
         // hdr.ascon.s0 = meta.t0;
         hdr.ascon.s1 = meta.t1;
         hdr.ascon.s2 = meta.t2;
