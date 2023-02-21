@@ -5,10 +5,17 @@
 #include <tna.p4>
 #endif
 
+#define X(a) diffusion_0_## a(); \
+diffusion_1_## a(); \
+diffusion_2_##a(); \
+diffusion_3_##a();\
+diffusion_4_##a(); \
+
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 const bit<64> const_i =0xf0 ;
+
 
 //using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
@@ -69,6 +76,8 @@ struct my_ingress_metadata_t {
     bit<64> q2;
     bit<64> q3;
     bit<64> q4;
+
+    bit<8> temp;
 }
 
 parser MyIngressParser(packet_in        pkt,
@@ -326,7 +335,7 @@ control MyIngress(
 
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p4[63:32] = meta.t4[6:0]++meta.t4[63:39]; 
+        @in_hash { meta.p1[63:32] = meta.t1[6:0]++meta.t1[63:39]; 
 
         }
         // ROR(t.x[4], 7)
@@ -362,112 +371,38 @@ control MyIngress(
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
     }
 
-    action clear_meta(){
-        meta.t0=0x0;
-        meta.t1=0x0;
-        meta.t2=0x0;
-        meta.t3=0x0;
-        meta.t4=0x0;
-
-        meta.u0=0x0;
-        meta.u1=0x0;
-        meta.u2=0x0;
-        meta.u3=0x0;
-        meta.u4=0x0;
-
-        meta.p0=0x0;
-        meta.p1=0x0;
-        meta.p2=0x0;
-        meta.p3=0x0;
-        meta.p4=0x0;
-
-        meta.q0=0x0;
-        meta.q1=0x0;
-        meta.q2=0x0;
-        meta.q3=0x0;
-        meta.q4=0x0;
-    }
 
     apply {
         //non-recirc packet
         if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
             first_pass();
         }
-
-        // /* addition of round constant */
-        // s->x[2] ^= C;
-        addition(const_i);   //can even skip this if we can get the constants changing for every round
-
-        // /* printstate(" round constant", s); */
-        // /* substitution layer */
-        // s->x[0] ^= s->x[4];
-        // s->x[4] ^= s->x[3];
-        // s->x[2] ^= s->x[1];
-        substitution();
-
-        // /* start of keccak s-box */
-        // t.x[0] = s->x[0] ^ (~s->x[1] & s->x[2]);
-        // t.x[1] = s->x[1] ^ (~s->x[2] & s->x[3]);
-        // t.x[2] = s->x[2] ^ (~s->x[3] & s->x[4]);
-        // t.x[3] = s->x[3] ^ (~s->x[4] & s->x[0]);
-        // t.x[4] = s->x[4] ^ (~s->x[0] & s->x[1]);
-        start_sbox_0();
-        start_sbox_1();
-        
-        // /* end of keccak s-box */
-        // t.x[1] ^= t.x[0];
-        // t.x[0] ^= t.x[4];
-        // t.x[3] ^= t.x[2];
-        // t.x[2] = ~t.x[2];
-        end_sbox();
-
-        copy_meta();
-        
-        // /* printstate(" substitution layer", &t); */
-        // /* linear diffusion layer */
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-        // s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-        // s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-        // s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-        diffusion_0_0();
-        diffusion_1_0();
-        diffusion_2_0();
-        diffusion_3_0();
-        diffusion_4_0();
-        diffusion_5_0();
+        first_pass();
+        // if(hdr.ascon.curr_round==0){
+            addition(const_i);
+            substitution();
+            start_sbox_0();
+            start_sbox_1();
+            end_sbox();
+            copy_meta();
+            X(0);
+        //      diffusion_0_0();
+        // diffusion_1_0();
+        // diffusion_2_0();
+        // diffusion_3_0();
+        // diffusion_4_0();
+        // diffusion_5_0();
                 
-        // diffusion_0_1();
-        // diffusion_1_1();
-        // diffusion_2_1();
-        // diffusion_3_1();
-        // diffusion_4_1();
-        // diffusion_5_1();
-
-        // diffusion_0_2();
-        // diffusion_1_2();
-        // diffusion_2_2();
-        // diffusion_3_2();
-        // diffusion_4_2();
-        // diffusion_5_2();
+        // }
+        // else if(hdr.ascon.curr_round==1){
+            X(1);
+        // }
         
-        // diffusion_0_3();
-        // diffusion_1_3();
-        // diffusion_2_3();
-        // diffusion_3_3();
-        // diffusion_4_3();
-        // diffusion_5_3();
 
-        // diffusion_0_4();
-        // diffusion_1_4();
-        // diffusion_2_4();
-        // diffusion_3_4();
-        // diffusion_4_4();
-        // diffusion_5_4();
 
-        clear_meta();
+        // clear_meta();
 
-        if(hdr.ascon.curr_round==11){
+        if(hdr.ascon.curr_round==16){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
         }
         else{
