@@ -195,10 +195,7 @@ control MyIngress(
     action diffusion_0_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p0= meta.t0[18:3]; 
-            //63:48 p0
-            //47:32 p1
-            //31:16 p2
-            //15:0  p3
+            //63:48 p0 47:32 p1 31:16 p2 15:0  p3
         }
         
     }
@@ -206,10 +203,6 @@ control MyIngress(
     action diffusion_1_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p1= meta.t0[2:0] ++ meta.t0[63:51]; 
-            //63:48 p0
-            //47:32 p1
-            //31:16 p2
-            //15:0  p3
         }
         
     }
@@ -217,10 +210,6 @@ control MyIngress(
     action diffusion_2_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p2= meta.t0[50:35]; 
-            //63:48 p0
-            //47:32 p1
-            //31:16 p2
-            //15:0  p3
         }
         
     }
@@ -228,10 +217,6 @@ control MyIngress(
     action diffusion_3_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p3= meta.t0[34:19]; 
-            //63:48 p0
-            //47:32 p1
-            //31:16 p2
-            //15:0  p3
         }
         
     }
@@ -303,47 +288,83 @@ control MyIngress(
     }
 
 // for the second diffusion layer
+
     action diffusion_0_1 () {
-        @in_hash { meta.p2 = meta.t1[60:29]; 
+        @in_hash { meta.p4 = meta.t1[60:45]; 
 
         }
         // ROR(t.x[1], 61) 
     }
     
     action diffusion_1_1 () {
-        @in_hash { meta.p3 = meta.t1[28:0]++ meta.t1[63:61]; }
+        @in_hash { meta.p5 = meta.t1[44:29]; }
         // ROR(t.x[1], 61) 
     }
 
     action diffusion_2_1 () {
-        @in_hash { meta.q2 = meta.u1[38:7]; }; 
+        @in_hash { meta.p6 = meta.t1[28:13]; }
+        // ROR(t.x[1], 61) 
+    }
+
+    action diffusion_3_1 () {
+        @in_hash { meta.p7 = meta.t1[12:0]++meta.t1[63:61]; }
+        // ROR(t.x[1], 61) 
+    }
+
+
+    action diffusion_4_1 () {
+        @in_hash { meta.q4 = meta.u1[38:23]; }
         // ROR(t.x[1], 39);
     }
-    action diffusion_3_1 () {
-        @in_hash { meta.q3 = meta.u1[6:0]++ meta.u1[63:39]; }; 
+    action diffusion_5_1 () {
+        @in_hash { meta.q5 = meta.u1[22:7]; } 
+        // ROR(t.x[1], 39);
+    }
+    action diffusion_6_1 () {
+        @in_hash { meta.q6 = meta.u1[6:0]++meta.u1[63:55]; } 
+        // ROR(t.x[1], 39);
+    }
+    action diffusion_7_1 () {
+        @in_hash { meta.q7 = meta.u1[54:39]; }
         // ROR(t.x[1], 39);
     }
 
-    action diffusion_4_1() {
-        @in_hash { meta.p2 = meta.p2 ^ meta.q2; } 
+    action diffusion_8_1() {
+        @in_hash { meta.p4 = meta.p4 ^ meta.q4; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
-
-    action diffusion_5_1() {
-        @in_hash { meta.p3 = meta.p3 ^ meta.q3; } 
+    action diffusion_9_1() {
+        @in_hash { meta.p5 = meta.p5 ^ meta.q5; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
+    action diffusion_10_1() {
+        @in_hash { meta.p6 = meta.p6 ^ meta.q6; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
+    action diffusion_11_1() {
+        @in_hash { meta.p7 = meta.p7 ^ meta.q7; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
 
     action diffusion_6_1() {
-        @in_hash { hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p2; } 
+        @in_hash { hdr.ascon.s1[63:48] = meta.t1[63:48] ^ meta.p4; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
+
+    action diffusion_6_1() {
+        @in_hash { hdr.ascon.s1[47:32] = meta.t1[47:32] ^ meta.p5; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
 
     action diffusion_7_1() {
-        @in_hash { hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p3; } 
+        @in_hash { hdr.ascon.s1[31:16] = meta.t1[31:16] ^ meta.p6; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
 
+    action diffusion_7_1() {
+        @in_hash { hdr.ascon.s1[15:0] = meta.t1[15:0] ^ meta.p7; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
 
 
 

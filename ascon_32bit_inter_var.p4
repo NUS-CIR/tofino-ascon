@@ -374,33 +374,43 @@ control MyIngress(
 
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p8 = meta.t1[6:0]++meta.t1[63:39]; 
+        @in_hash { meta.p8 = meta.t4[6:0]++meta.t4[63:39]; 
 
         }
         // ROR(t.x[4], 7)
     }
     
     action diffusion_1_4 () {
-        @in_hash { meta.p4[31:0] = meta.t4[38:7]; }
+        @in_hash { meta.p9 = meta.t4[38:7]; }
         // ROR(t.x[4], 7)
     }
 
     action diffusion_2_4 () {
-        @in_hash { meta.q4[63:32] = meta.u4[40:9]; }
+        @in_hash { meta.q8 = meta.u4[40:9]; }
         // ROR(t.x[4], 41)
     }
     action diffusion_3_4 () {
-        @in_hash { meta.q4[31:0] = meta.u4[8:0]++ meta.u4[63:41]; }
+        @in_hash { meta.q9 = meta.u4[8:0]++ meta.u4[63:41]; }
         // ROR(t.x[4], 41)
     }
 
     action diffusion_4_4() {
-        @in_hash { meta.p4 = meta.p4 ^ meta.q4; } 
+        @in_hash { meta.p8 = meta.p8 ^ meta.q8; } 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
 
     action diffusion_5_4() {
-        @in_hash { hdr.ascon.s4 = meta.t4 ^ meta.p4; } 
+        @in_hash { meta.p9 = meta.p9 ^ meta.q9; } 
+        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
+    }
+
+    action diffusion_6_4() {
+        @in_hash { hdr.ascon.s4[63:32] = meta.t4 ^ meta.p8; } 
+        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
+    }
+
+    action diffusion_7_4() {
+        @in_hash { hdr.ascon.s4[31:0] = meta.t4 ^ meta.p9; } 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
 
@@ -479,21 +489,23 @@ control MyIngress(
         diffusion_6_2();
         diffusion_7_2();
 
-        // diffusion_0_3();
-        // diffusion_1_3();
-        // diffusion_2_3();
-        // diffusion_3_3();
-        // diffusion_4_3();
-        // diffusion_5_3();
+        diffusion_0_3();
+        diffusion_1_3();
+        diffusion_2_3();
+        diffusion_3_3();
+        diffusion_4_3();
+        diffusion_5_3();
+        diffusion_6_3();
+        diffusion_7_3();        
 
-        // diffusion_0_4();
-        // diffusion_1_4();
-        // diffusion_2_4();
-        // diffusion_3_4();
-        // diffusion_4_4();
-        // diffusion_5_4();
-
-
+        diffusion_0_4();
+        diffusion_1_4();
+        diffusion_2_4();
+        diffusion_3_4();
+        diffusion_4_4();
+        diffusion_5_4();
+        diffusion_6_4();
+        diffusion_7_4();
 
         if(hdr.ascon.curr_round==11){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;

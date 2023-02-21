@@ -343,7 +343,7 @@ control MyIngress(
 
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p1[63:32] = meta.t1[6:0]++meta.t1[63:39]; 
+        @in_hash { meta.p4[63:32] = meta.t4[6:0]++meta.t4[63:39]; 
 
         }
         // ROR(t.x[4], 7)

@@ -444,12 +444,12 @@ control MyIngress(
         diffusion_4_1();
         diffusion_5_1();
 
-        diffusion_0_2();
-        diffusion_1_2();
-        diffusion_2_2();
-        diffusion_3_2();
-        diffusion_4_2();
-        diffusion_5_2();
+        // diffusion_0_2();
+        // diffusion_1_2();
+        // diffusion_2_2();
+        // diffusion_3_2();
+        // diffusion_4_2();
+        // diffusion_5_2();
         
         // diffusion_0_3();
         // diffusion_1_3();
