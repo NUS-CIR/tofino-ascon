@@ -58,17 +58,27 @@ struct my_ingress_metadata_t {
     bit<64> u3;
     bit<64> u4;
 
-    bit<64> p0;
-    bit<64> p1;
-    bit<64> p2;
-    bit<64> p3;
-    bit<64> p4;
+    bit<32> p0;
+    bit<32> p1;
+    bit<32> p2;
+    bit<32> p3;
+    bit<32> p4;
+    bit<32> p5;
+    bit<32> p6;
+    bit<32> p7;
+    bit<32> p8;
+    bit<32> p9;
 
-    bit<64> q0;
-    bit<64> q1;
-    bit<64> q2;
-    bit<64> q3;
-    bit<64> q4;
+    bit<32> q0;
+    bit<32> q1;
+    bit<32> q2;
+    bit<32> q3;
+    bit<32> q4;
+    bit<32> q5;
+    bit<32> q6;
+    bit<32> q7;
+    bit<32> q8;
+    bit<32> q9;
 }
 
 parser MyIngressParser(packet_in        pkt,
@@ -183,108 +193,136 @@ control MyIngress(
 
     action diffusion_0_0 () {
         // ROR(t.x[0], 19)
-        @in_hash { 
-            meta.p0[63:32] = meta.t0[18:0] ++ meta.t0[63:51]; 
+        @in_hash { meta.p0= meta.t0[18:0] ++ meta.t0[63:51]; 
             // meta.p1[63:32] = meta.t1[60:29]; 
         }
-        // ROR(t.x[1], 61) 
         
     }
     
     action diffusion_1_0 () {
         // ROR(t.x[0], 19)
-        @in_hash { meta.p0[31:0] = meta.t0[50:19]; }
+        @in_hash { meta.p1 = meta.t0[50:19]; }
         // ROR(t.x[1], 61) 
     }
 
     action diffusion_2_0 () {
         // ROR(t.x[0], 28);
-        @in_hash { meta.q0[63:32] = meta.u0[27:0] ++ meta.u0[63:60]; }
+        @in_hash { meta.q0 = meta.u0[27:0] ++ meta.u0[63:60]; }
         // ROR(t.x[1], 39);
     }
     action diffusion_3_0 () {
         // ROR(t.x[0], 28);
-        @in_hash { meta.q0[31:0] = meta.u0[59:28]; }
+        @in_hash { meta.q1 = meta.u0[59:28]; }
         // ROR(t.x[1], 39);
     }
 
     action diffusion_4_0() {
         // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
         @in_hash { meta.p0 = meta.p0 ^ meta.q0; } 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
 
     action diffusion_5_0() {
         // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        @in_hash { hdr.ascon.s0 = meta.t0 ^ meta.p0; } 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+        @in_hash { meta.p1 = meta.p1 ^ meta.q1; } 
     }
 
+    action diffusion_6_0() {
+        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
+        @in_hash { hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p0; } 
+
+    }
+
+    action diffusion_7_0() {
+        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
+        @in_hash { hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p1; } 
+
+    }
 
 
 // for the second diffusion layer
     action diffusion_0_1 () {
-        @in_hash { meta.p1[63:32] = meta.t1[60:29]; 
+        @in_hash { meta.p2 = meta.t1[60:29]; 
 
         }
         // ROR(t.x[1], 61) 
     }
     
     action diffusion_1_1 () {
-        @in_hash { meta.p1[31:0] = meta.t1[28:0]++ meta.t1[63:61]; }
+        @in_hash { meta.p3 = meta.t1[28:0]++ meta.t1[63:61]; }
         // ROR(t.x[1], 61) 
     }
 
     action diffusion_2_1 () {
-        @in_hash { meta.q1[63:32] = meta.u1[38:7]; }
+        @in_hash { meta.q2 = meta.u1[38:7]; }
         // ROR(t.x[1], 39);
     }
     action diffusion_3_1 () {
-        @in_hash { meta.q1[31:0] = meta.u1[6:0]++ meta.u1[63:39]; }
+        @in_hash { meta.q3 = meta.u1[6:0]++ meta.u1[63:39]; }
         // ROR(t.x[1], 39);
     }
 
     action diffusion_4_1() {
-        @in_hash { meta.p1 = meta.p1 ^ meta.q1; } 
+        @in_hash { meta.p2 = meta.p2 ^ meta.q2; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
 
     action diffusion_5_1() {
-        @in_hash { hdr.ascon.s1 = meta.t1 ^ meta.p1; } 
+        @in_hash { meta.p3 = meta.p3 ^ meta.q3; } 
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
     }
+
+    action diffusion_6_1() {
+        @in_hash { hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p2; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
+
+    action diffusion_7_1() {
+        @in_hash { hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p3; } 
+        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
+    }
+
 
 
 
 // for the third diffusion layer
     action diffusion_0_2 () {
-        @in_hash { meta.p2[63:32] = meta.t2[0:0]++meta.t2[63:33]; 
+        @in_hash { meta.p4 = meta.t2[0:0]++meta.t2[63:33]; 
 
         }
         // ROR(t.x[2], 1)
     }
     
     action diffusion_1_2 () {
-        @in_hash { meta.p2[31:0] = meta.t2[32:1]; }
+        @in_hash { meta.p5 = meta.t2[32:1]; }
         // ROR(t.x[2], 1)
     }
 
     action diffusion_2_2 () {
-        @in_hash { meta.q2[63:32] = meta.u2[5:0]++meta.u2[63:38]; }
+        @in_hash { meta.q4 = meta.u2[5:0]++meta.u2[63:38]; }
         // ROR(t.x[2], 6)
     }
     action diffusion_3_2 () {
-        @in_hash { meta.q2[31:0] = meta.u2[37:6]; }
+        @in_hash { meta.q5 = meta.u2[37:6]; }
         // ROR(t.x[2], 6)
     }
 
     action diffusion_4_2() {
-        @in_hash { meta.p2 = meta.p2 ^ meta.q2; } 
+        @in_hash { meta.p4 = meta.p4 ^ meta.q4; } 
         //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
     }
 
     action diffusion_5_2() {
-        @in_hash { hdr.ascon.s2 = meta.t2 ^ meta.p2; } 
+        @in_hash { meta.p5 = meta.p5 ^ meta.q5; } 
+        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
+    }
+
+    action diffusion_6_2() {
+        @in_hash { hdr.ascon.s2[63:32] = meta.t2 ^ meta.p4; } 
+        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
+    }
+
+    action diffusion_7_2() {
+        @in_hash { hdr.ascon.s2[31:0] = meta.t2 ^ meta.p5; } 
         //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
     }
 
@@ -292,33 +330,43 @@ control MyIngress(
 
 // for the fourth diffusion layer
     action diffusion_0_3 () {
-        @in_hash { meta.p3[63:32] = meta.t3[9:0]++meta.t3[63:42]; 
+        @in_hash { meta.p6= meta.t3[9:0]++meta.t3[63:42]; 
 
         }
         // ROR(t.x[3], 10)
     }
     
     action diffusion_1_3 () {
-        @in_hash { meta.p3[31:0] = meta.t3[41:10]; }
+        @in_hash { meta.p7 = meta.t3[41:10]; }
         // ROR(t.x[3], 10)
     }
 
     action diffusion_2_3 () {
-        @in_hash { meta.q3[63:32] = meta.u3[16:0]++meta.u3[63:49]; }
+        @in_hash { meta.q6 = meta.u3[16:0]++meta.u3[63:49]; }
         // ROR(t.x[3], 17)
     }
     action diffusion_3_3 () {
-        @in_hash { meta.q3[31:0] = meta.u3[48:17]; }
+        @in_hash { meta.q7 = meta.u3[48:17]; }
         // ROR(t.x[3], 17)
     }
 
     action diffusion_4_3() {
-        @in_hash { meta.p3 = meta.p3 ^ meta.q3; } 
+        @in_hash { meta.p6 = meta.p6 ^ meta.q6; } 
         //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
     }
 
     action diffusion_5_3() {
-        @in_hash { hdr.ascon.s3 = meta.t3^ meta.p3; } 
+        @in_hash { meta.p7 = meta.p7 ^ meta.q7; } 
+        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
+    }
+
+    action diffusion_6_3() {
+        @in_hash { hdr.ascon.s3[63:32] = meta.t3^ meta.p6; } 
+        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
+    }
+
+    action diffusion_7_3() {
+        @in_hash { hdr.ascon.s3[31:0] = meta.t3^ meta.p7; } 
         //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
     }
 
@@ -326,7 +374,7 @@ control MyIngress(
 
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p4[63:32] = meta.t4[6:0]++meta.t4[63:39]; 
+        @in_hash { meta.p8 = meta.t1[6:0]++meta.t1[63:39]; 
 
         }
         // ROR(t.x[4], 7)
@@ -360,32 +408,6 @@ control MyIngress(
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
-    }
-
-    action clear_meta(){
-        meta.t0=0x0;
-        meta.t1=0x0;
-        meta.t2=0x0;
-        meta.t3=0x0;
-        meta.t4=0x0;
-
-        meta.u0=0x0;
-        meta.u1=0x0;
-        meta.u2=0x0;
-        meta.u3=0x0;
-        meta.u4=0x0;
-
-        meta.p0=0x0;
-        meta.p1=0x0;
-        meta.p2=0x0;
-        meta.p3=0x0;
-        meta.p4=0x0;
-
-        meta.q0=0x0;
-        meta.q1=0x0;
-        meta.q2=0x0;
-        meta.q3=0x0;
-        meta.q4=0x0;
     }
 
     apply {
@@ -436,13 +458,17 @@ control MyIngress(
         diffusion_3_0();
         diffusion_4_0();
         diffusion_5_0();
-                
+        diffusion_6_0();
+        diffusion_7_0();
+
         diffusion_0_1();
         diffusion_1_1();
         diffusion_2_1();
         diffusion_3_1();
         diffusion_4_1();
         diffusion_5_1();
+        diffusion_6_1();
+        diffusion_7_1();
 
         diffusion_0_2();
         diffusion_1_2();
@@ -450,7 +476,9 @@ control MyIngress(
         diffusion_3_2();
         diffusion_4_2();
         diffusion_5_2();
-        
+        diffusion_6_2();
+        diffusion_7_2();
+
         // diffusion_0_3();
         // diffusion_1_3();
         // diffusion_2_3();
@@ -465,7 +493,7 @@ control MyIngress(
         // diffusion_4_4();
         // diffusion_5_4();
 
-        // clear_meta();
+
 
         if(hdr.ascon.curr_round==11){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;

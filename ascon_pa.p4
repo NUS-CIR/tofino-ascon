@@ -17,6 +17,23 @@ const bit<16> ETHERTYPE_NORM = 0x8120;
 const bit<16> ETHERTYPE_RECIR = 0x8133;
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
 
+@pa_atomic("ingress","meta.p0")
+@pa_atomic("ingress","meta.p1")
+@pa_atomic("ingress","meta.p2")
+@pa_atomic("ingress","meta.p3")
+@pa_atomic("ingress","meta.p4")
+
+@pa_atomic("ingress","meta.q0")
+@pa_atomic("ingress","meta.q1")
+@pa_atomic("ingress","meta.q2")
+@pa_atomic("ingress","meta.q3")
+@pa_atomic("ingress","meta.q4")
+
+@pa_atomic("ingress","meta.t0")
+@pa_atomic("ingress","meta.t1")
+@pa_atomic("ingress","meta.t2")
+@pa_atomic("ingress","meta.t3")
+@pa_atomic("ingress","meta.t4")
 
 header ethernet_h {
     bit<48>   dst_addr;
@@ -326,7 +343,7 @@ control MyIngress(
 
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p4[63:32] = meta.t4[6:0]++meta.t4[63:39]; 
+        @in_hash { meta.p1[63:32] = meta.t1[6:0]++meta.t1[63:39]; 
 
         }
         // ROR(t.x[4], 7)
@@ -362,34 +379,9 @@ control MyIngress(
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
     }
 
-    action clear_meta(){
-        meta.t0=0x0;
-        meta.t1=0x0;
-        meta.t2=0x0;
-        meta.t3=0x0;
-        meta.t4=0x0;
-
-        meta.u0=0x0;
-        meta.u1=0x0;
-        meta.u2=0x0;
-        meta.u3=0x0;
-        meta.u4=0x0;
-
-        meta.p0=0x0;
-        meta.p1=0x0;
-        meta.p2=0x0;
-        meta.p3=0x0;
-        meta.p4=0x0;
-
-        meta.q0=0x0;
-        meta.q1=0x0;
-        meta.q2=0x0;
-        meta.q3=0x0;
-        meta.q4=0x0;
-    }
-
     apply {
-        //non-recirc packet
+
+        //non-recirc packet 
         if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
             first_pass();
         }
@@ -444,12 +436,12 @@ control MyIngress(
         diffusion_4_1();
         diffusion_5_1();
 
-        diffusion_0_2();
-        diffusion_1_2();
-        diffusion_2_2();
-        diffusion_3_2();
-        diffusion_4_2();
-        diffusion_5_2();
+        // diffusion_0_2();
+        // diffusion_1_2();
+        // diffusion_2_2();
+        // diffusion_3_2();
+        // diffusion_4_2();
+        // diffusion_5_2();
         
         // diffusion_0_3();
         // diffusion_1_3();
@@ -465,7 +457,6 @@ control MyIngress(
         // diffusion_4_4();
         // diffusion_5_4();
 
-        // clear_meta();
 
         if(hdr.ascon.curr_round==11){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
