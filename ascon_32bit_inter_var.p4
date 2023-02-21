@@ -131,6 +131,14 @@ control MyIngress(
 {   
     Hash<bit<64>>(HashAlgorithm_t.IDENTITY) copy0;// should be 256 if making use of Identity default hashing
 
+    Register<bit<8>,bit<8>>(1,0x1) reg;
+    RegisterAction<bit<8>, bit<8>, bit<8>>(reg)
+        leave_data = {
+            void apply(inout bit<8> register_data) { 
+                register_data = 0xb;
+            }
+        };
+
     action ascon_init(){
         hdr.ascon.s0= 0xee9398aadb67f03d;
         hdr.ascon.s1= 0x8bb21831c60f1002;   
@@ -196,7 +204,6 @@ control MyIngress(
         @in_hash { meta.p0= meta.t0[18:0] ++ meta.t0[63:51]; 
             // meta.p1[63:32] = meta.t1[60:29]; 
         }
-        
     }
     
     action diffusion_1_0 () {
@@ -422,9 +429,13 @@ control MyIngress(
 
     apply {
         //non-recirc packet
+        leave_data.execute(0x0);
+        
         if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
             first_pass();
         }
+        //Initialization for recirc case
+        first_pass();
 
         // /* addition of round constant */
         // s->x[2] ^= C;
@@ -471,44 +482,46 @@ control MyIngress(
         diffusion_6_0();
         diffusion_7_0();
 
-        diffusion_0_1();
-        diffusion_1_1();
-        diffusion_2_1();
-        diffusion_3_1();
-        diffusion_4_1();
-        diffusion_5_1();
-        diffusion_6_1();
-        diffusion_7_1();
+        // diffusion_0_1();
+        // diffusion_1_1();
+        // diffusion_2_1();
+        // diffusion_3_1();
+        // diffusion_4_1();
+        // diffusion_5_1();
+        // diffusion_6_1();
+        // diffusion_7_1();
 
-        diffusion_0_2();
-        diffusion_1_2();
-        diffusion_2_2();
-        diffusion_3_2();
-        diffusion_4_2();
-        diffusion_5_2();
-        diffusion_6_2();
-        diffusion_7_2();
+        // diffusion_0_2();
+        // diffusion_1_2();
+        // diffusion_2_2();
+        // diffusion_3_2();
+        // diffusion_4_2();
+        // diffusion_5_2();
+        // diffusion_6_2();
+        // diffusion_7_2();
 
-        diffusion_0_3();
-        diffusion_1_3();
-        diffusion_2_3();
-        diffusion_3_3();
-        diffusion_4_3();
-        diffusion_5_3();
-        diffusion_6_3();
-        diffusion_7_3();        
+        // diffusion_0_3();
+        // diffusion_1_3();
+        // diffusion_2_3();
+        // diffusion_3_3();
+        // diffusion_4_3();
+        // diffusion_5_3();
+        // diffusion_6_3();
+        // diffusion_7_3();        
 
-        diffusion_0_4();
-        diffusion_1_4();
-        diffusion_2_4();
-        diffusion_3_4();
-        diffusion_4_4();
-        diffusion_5_4();
-        diffusion_6_4();
-        diffusion_7_4();
+        // diffusion_0_4();
+        // diffusion_1_4();
+        // diffusion_2_4();
+        // diffusion_3_4();
+        // diffusion_4_4();
+        // diffusion_5_4();
+        // diffusion_6_4();
+        // diffusion_7_4();
+
 
         if(hdr.ascon.curr_round==11){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
+            reg.write(0,0xb);
         }
         else{
             do_recirculate();
