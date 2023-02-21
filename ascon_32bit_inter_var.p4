@@ -317,12 +317,12 @@ control MyIngress(
     }
 
     action diffusion_6_2() {
-        @in_hash { hdr.ascon.s2[63:32] = meta.t2 ^ meta.p4; } 
+        @in_hash { hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p4; } 
         //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
     }
 
     action diffusion_7_2() {
-        @in_hash { hdr.ascon.s2[31:0] = meta.t2 ^ meta.p5; } 
+        @in_hash { hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p5; } 
         //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
     }
 
@@ -361,12 +361,12 @@ control MyIngress(
     }
 
     action diffusion_6_3() {
-        @in_hash { hdr.ascon.s3[63:32] = meta.t3^ meta.p6; } 
+        @in_hash { hdr.ascon.s3[63:32] = meta.t3[63:32]^ meta.p6; } 
         //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
     }
 
     action diffusion_7_3() {
-        @in_hash { hdr.ascon.s3[31:0] = meta.t3^ meta.p7; } 
+        @in_hash { hdr.ascon.s3[31:0] = meta.t3[31:0]^ meta.p7; } 
         //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
     }
 
@@ -405,12 +405,12 @@ control MyIngress(
     }
 
     action diffusion_6_4() {
-        @in_hash { hdr.ascon.s4[63:32] = meta.t4 ^ meta.p8; } 
+        @in_hash { hdr.ascon.s4[63:32] = meta.t4[63:32]^ meta.p8; } 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
 
     action diffusion_7_4() {
-        @in_hash { hdr.ascon.s4[31:0] = meta.t4 ^ meta.p9; } 
+        @in_hash { hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p9; } 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
 
