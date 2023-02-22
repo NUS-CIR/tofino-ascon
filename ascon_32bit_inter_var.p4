@@ -9,7 +9,7 @@
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 
-const bit<64> input_str=0x0000;
+const bit<64> input_str=0x0000000100020003;
 
 //using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
@@ -438,7 +438,7 @@ control MyIngress(
             9:addition(0x69);
             10:addition(0x5a);
             11:addition(0x4b);
-            12:addition(0x3c);
+            // 12:addition(0x3c);
         }
     } 
 
@@ -448,7 +448,7 @@ control MyIngress(
         leave_data.execute(0x0);
 
         //Initialization for the first packet
-        if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
+        if(hdr.ethernet.ether_type==ETHERTYPE_NORM){
             first_pass();
         }
 
@@ -537,8 +537,10 @@ control MyIngress(
 
         // check for final round
         if(hdr.ascon.curr_round==0xb){
-            hdr.ethernet.ether_type=ETHERTYPE_NORM;
-            ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
+            // hdr.ethernet.ether_type=ETHERTYPE_NORM;
+            // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
+
+            ig_tm_md.ucast_egress_port =(bit<9>)0x9;
             //reg.write(0,0xb);
         }
         else{
