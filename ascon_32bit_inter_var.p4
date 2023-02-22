@@ -9,6 +9,7 @@
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 
+const bit<64> input_str=0x0000;
 
 //using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
@@ -16,7 +17,6 @@ const bit<16> ETHERTYPE_TPID = 0x8100;
 const bit<16> ETHERTYPE_NORM = 0x8120;
 const bit<16> ETHERTYPE_RECIR = 0x8133;
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
-
 
 header ethernet_h {
     bit<48>   dst_addr;
@@ -141,7 +141,7 @@ control MyIngress(
         };
 
     action ascon_init(){
-        hdr.ascon.s0= 0xee9398aadb67f03d;
+        hdr.ascon.s0= input_str ^ 0xee9398aadb67f03d;
         hdr.ascon.s1= 0x8bb21831c60f1002;   
         hdr.ascon.s2= 0xb48a92db98d5da62;
         hdr.ascon.s3= 0x43189921b8f8e3e8;
@@ -453,11 +453,8 @@ control MyIngress(
         }
 
         // /* addition of round constant */
-        // s->x[2] ^= C;
         add_const.apply();
-        // addition(const_i);   //can even skip this if we can get the constants changing for every round
 
-        // /* printstate(" round constant", s); */
         // /* substitution layer */
         // s->x[0] ^= s->x[4];
         // s->x[4] ^= s->x[3];
@@ -479,16 +476,16 @@ control MyIngress(
         // t.x[3] ^= t.x[2];
         // t.x[2] = ~t.x[2];
         end_sbox();
-
         copy_meta();
         
-        // /* printstate(" substitution layer", &t); */
         // /* linear diffusion layer */
         // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
         // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
         // s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
         // s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
         // s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
+
+        // for hdr.s0
         diffusion_0_0();
         diffusion_1_0();
         diffusion_2_0();
@@ -498,6 +495,7 @@ control MyIngress(
         diffusion_6_0();
         diffusion_7_0();
 
+        // for hdr.s1
         diffusion_0_1();
         diffusion_1_1();
         diffusion_2_1();
@@ -507,6 +505,7 @@ control MyIngress(
         diffusion_6_1();
         diffusion_7_1();
 
+        // for hdr.s2
         diffusion_0_2();
         diffusion_1_2();
         diffusion_2_2();
@@ -516,6 +515,7 @@ control MyIngress(
         diffusion_6_2();
         diffusion_7_2();
 
+        // for hdr.s3
         diffusion_0_3(); 
         diffusion_1_3();
         diffusion_2_3();
@@ -525,6 +525,7 @@ control MyIngress(
         diffusion_6_3();
         diffusion_7_3();        
 
+        // for hdr.s4
         diffusion_0_4();
         diffusion_1_4();
         diffusion_2_4();
@@ -534,8 +535,9 @@ control MyIngress(
         diffusion_6_4();
         diffusion_7_4();
 
-
+        // check for final round
         if(hdr.ascon.curr_round==0xb){
+            hdr.ethernet.ether_type=ETHERTYPE_NORM;
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
             //reg.write(0,0xb);
         }
