@@ -8,7 +8,7 @@
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
-const bit<64> const_i =0xf0 ;
+
 
 //using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
@@ -131,11 +131,12 @@ control MyIngress(
 {   
     Hash<bit<64>>(HashAlgorithm_t.IDENTITY) copy0;// should be 256 if making use of Identity default hashing
 
-    Register<bit<8>,bit<8>>(1,0x1) reg;
+    Register<bit<8>,bit<8>>(1,0x0) reg;
+
     RegisterAction<bit<8>, bit<8>, bit<8>>(reg)
         leave_data = {
             void apply(inout bit<8> register_data) { 
-                register_data = 0xb;
+                register_data = register_data+1;
             }
         };
 
@@ -201,9 +202,7 @@ control MyIngress(
 
     action diffusion_0_0 () {
         // ROR(t.x[0], 19)
-        @in_hash { meta.p0= meta.t0[18:0] ++ meta.t0[63:51]; 
-            // meta.p1[63:32] = meta.t1[60:29]; 
-        }
+        @in_hash { meta.p0= meta.t0[18:0] ++ meta.t0[63:51];  }
     }
     
     action diffusion_1_0 () {
@@ -248,9 +247,7 @@ control MyIngress(
 
 // for the second diffusion layer
     action diffusion_0_1 () {
-        @in_hash { meta.p2 = meta.t1[60:29]; 
-
-        }
+        @in_hash { meta.p2 = meta.t1[60:29];        }
         // ROR(t.x[1], 61) 
     }
     
@@ -289,13 +286,9 @@ control MyIngress(
     }
 
 
-
-
 // for the third diffusion layer
     action diffusion_0_2 () {
-        @in_hash { meta.p4 = meta.t2[0:0]++meta.t2[63:33]; 
-
-        }
+        @in_hash { meta.p4 = meta.t2[0:0]++meta.t2[63:33];  }
         // ROR(t.x[2], 1)
     }
     
@@ -334,12 +327,9 @@ control MyIngress(
     }
 
 
-
 // for the fourth diffusion layer
     action diffusion_0_3 () {
-        @in_hash { meta.p6= meta.t3[9:0]++meta.t3[63:42]; 
-
-        }
+        @in_hash { meta.p6= meta.t3[9:0]++meta.t3[63:42];  }
         // ROR(t.x[3], 10)
     }
     
@@ -378,12 +368,9 @@ control MyIngress(
     }
 
 
-
 // for the final diffusion layer
     action diffusion_0_4 () {
-        @in_hash { meta.p8 = meta.t4[6:0]++meta.t4[63:39]; 
-
-        }
+        @in_hash { meta.p8 = meta.t4[6:0]++meta.t4[63:39];  }
         // ROR(t.x[4], 7)
     }
     
@@ -425,21 +412,50 @@ control MyIngress(
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
+        hdr.ethernet.ether_type=ETHERTYPE_RECIR;
     }
+    
+
+    table add_const{
+        key={
+            hdr.ascon.curr_round:exact;
+        }
+        actions= {
+            addition(); 
+            @defaultonly NoAction;
+        }
+        size=16;
+        const entries ={
+            0:addition(0xf0);
+            1:addition(0xe1);
+            2:addition(0xd2);         
+            3:addition(0xc3);
+            4:addition(0xb4);
+            5:addition(0xa5);
+            6:addition(0x96);
+            7:addition(0x87);
+            8:addition(0x78);
+            9:addition(0x69);
+            10:addition(0x5a);
+            11:addition(0x4b);
+            12:addition(0x3c);
+        }
+    } 
+
 
     apply {
-        //non-recirc packet
+        //pkt count register
         leave_data.execute(0x0);
-        
+
+        //Initialization for the first packet
         if(hdr.ethernet.ether_type!=ETHERTYPE_RECIR){
             first_pass();
         }
-        //Initialization for recirc case
-        first_pass();
 
         // /* addition of round constant */
         // s->x[2] ^= C;
-        addition(const_i);   //can even skip this if we can get the constants changing for every round
+        add_const.apply();
+        // addition(const_i);   //can even skip this if we can get the constants changing for every round
 
         // /* printstate(" round constant", s); */
         // /* substitution layer */
@@ -482,46 +498,46 @@ control MyIngress(
         diffusion_6_0();
         diffusion_7_0();
 
-        // diffusion_0_1();
-        // diffusion_1_1();
-        // diffusion_2_1();
-        // diffusion_3_1();
-        // diffusion_4_1();
-        // diffusion_5_1();
-        // diffusion_6_1();
-        // diffusion_7_1();
+        diffusion_0_1();
+        diffusion_1_1();
+        diffusion_2_1();
+        diffusion_3_1();
+        diffusion_4_1();
+        diffusion_5_1();
+        diffusion_6_1();
+        diffusion_7_1();
 
-        // diffusion_0_2();
-        // diffusion_1_2();
-        // diffusion_2_2();
-        // diffusion_3_2();
-        // diffusion_4_2();
-        // diffusion_5_2();
-        // diffusion_6_2();
-        // diffusion_7_2();
+        diffusion_0_2();
+        diffusion_1_2();
+        diffusion_2_2();
+        diffusion_3_2();
+        diffusion_4_2();
+        diffusion_5_2();
+        diffusion_6_2();
+        diffusion_7_2();
 
-        // diffusion_0_3();
-        // diffusion_1_3();
-        // diffusion_2_3();
-        // diffusion_3_3();
-        // diffusion_4_3();
-        // diffusion_5_3();
-        // diffusion_6_3();
-        // diffusion_7_3();        
+        diffusion_0_3(); 
+        diffusion_1_3();
+        diffusion_2_3();
+        diffusion_3_3();
+        diffusion_4_3();
+        diffusion_5_3();
+        diffusion_6_3();
+        diffusion_7_3();        
 
-        // diffusion_0_4();
-        // diffusion_1_4();
-        // diffusion_2_4();
-        // diffusion_3_4();
-        // diffusion_4_4();
-        // diffusion_5_4();
-        // diffusion_6_4();
-        // diffusion_7_4();
+        diffusion_0_4();
+        diffusion_1_4();
+        diffusion_2_4();
+        diffusion_3_4();
+        diffusion_4_4();
+        diffusion_5_4();
+        diffusion_6_4();
+        diffusion_7_4();
 
 
-        if(hdr.ascon.curr_round==11){
+        if(hdr.ascon.curr_round==0xb){
             ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
-            reg.write(0,0xb);
+            //reg.write(0,0xb);
         }
         else{
             do_recirculate();
