@@ -9,7 +9,7 @@
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 
-const bit<64> input_str=0x3030303130323033;
+const bit<64> input_str=0x0001020304050607;
 
 //using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
@@ -424,7 +424,7 @@ control MyIngress(
             addition(); 
             @defaultonly NoAction;
         }
-        size=16;
+        size=32;
         const entries ={
             0:addition(0xf0);
             1:addition(0xe1);
@@ -438,7 +438,18 @@ control MyIngress(
             9:addition(0x69);
             10:addition(0x5a);
             11:addition(0x4b);
-            // 12:addition(0x3c);
+            12:addition(0xf0);
+            13:addition(0xe1);
+            14:addition(0xd2);         
+            15:addition(0xc3);
+            16:addition(0xb4);
+            17:addition(0xa5);
+            18:addition(0x96);
+            19:addition(0x87);
+            20:addition(0x78);
+            21:addition(0x69);
+            22:addition(0x5a);
+            23:addition(0x4b);
         }
     } 
 
@@ -452,9 +463,12 @@ control MyIngress(
             first_pass();
         }
 
-        
-        // check for final round
         if(hdr.ascon.curr_round==0xc){
+            hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
+        }
+        
+        // check for final round(24th round)
+        if(hdr.ascon.curr_round==0x18){
             // hdr.ethernet.ether_type=ETHERTYPE_NORM;
             // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
 
