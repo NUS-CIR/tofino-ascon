@@ -4,6 +4,7 @@
 #include "printstate.h"
 #include "word.h"
 #include<stdio.h>
+
 int crypto_hash(unsigned char* out, const unsigned char* in,
                 unsigned long long len) {
   /* initialize */
@@ -32,6 +33,7 @@ int crypto_hash(unsigned char* out, const unsigned char* in,
 
   /* squeeze full output blocks */
   len = CRYPTO_BYTES;
+  //len = 8;
   while (len > ASCON_HASH_RATE) {
     STOREBYTES(out, s.x[0], 8);
     printstate("squeeze output", &s);

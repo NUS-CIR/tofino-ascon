@@ -5,6 +5,8 @@
         "printstate.h": "c",
         "stdio.h": "c",
         "constants.h": "c",
-        "round.h": "c"
+        "round.h": "c",
+        "permutations.h": "c",
+        "stdint.h": "c"
     }
 }
