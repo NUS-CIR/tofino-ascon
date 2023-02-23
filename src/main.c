@@ -7,7 +7,7 @@ void main(){
     unsigned char* out=malloc(33*sizeof(*out));
     unsigned char in[8]={0, 1, 2, 3, 4, 5, 6, 7};
     
-    unsigned long long len=4;
+    unsigned long long len=8;
     // unsigned long long len= (unsigned long long)strlen(in);
     printf("the LENGTH is %llu bytes\n",len);
 
