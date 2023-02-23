@@ -9,13 +9,12 @@
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
 
-const bit<64> input_str=0x0001020304050607;
+const bit<64> input_str=0x0001020304050607;//64 bit string input supported
 
-//using custom ether_type for checking b/w a normal and a recirc packet
 typedef bit<16> ether_type_t;
 const bit<16> ETHERTYPE_TPID = 0x8100;
 const bit<16> ETHERTYPE_NORM = 0x8120;
-const bit<16> ETHERTYPE_RECIR = 0x8133;
+const bit<16> ETHERTYPE_RECIR = 0x8133; //using custom ether_type for checking b/w a normal and a recirc packet
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
 
 header ethernet_h {
@@ -58,8 +57,8 @@ struct my_ingress_metadata_t {
     bit<64> u3;
     bit<64> u4;
 
-    bit<32> p0;
-    bit<32> p1;
+    bit<32> p0;     // intermediate variables for the actions, needed to change from 64 bit to
+    bit<32> p1;     // 32-bit because of PHV exhaustion 
     bit<32> p2;
     bit<32> p3;
     bit<32> p4;
@@ -98,6 +97,7 @@ parser MyIngressParser(packet_in        pkt,
     state parse_ethernet {
         pkt.extract(hdr.ethernet);
         transition parse_ascon;
+        
         // transition select(hdr.ethernet.ether_type){
         //     ETHERTYPE_NORM:parse_ascon;
         //     ETHERTYPE_RECIR:parse_ascon_meta;
@@ -129,17 +129,17 @@ control MyIngress(
     inout ingress_intrinsic_metadata_for_deparser_t  ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t        ig_tm_md)
 {   
-    Hash<bit<64>>(HashAlgorithm_t.IDENTITY) copy0;// should be 256 if making use of Identity default hashing
+    // Hash<bit<64>>(HashAlgorithm_t.IDENTITY) copy0;// should be 256 if making use of Identity default hashing
 
     Register<bit<8>,bit<8>>(1,0x0) reg;
-
+    // for verifying the round counts in recirc
     RegisterAction<bit<8>, bit<8>, bit<8>>(reg)
         leave_data = {
             void apply(inout bit<8> register_data) { 
                 register_data = register_data+1;
             }
         };
-
+    //fixed initialization stage
     action ascon_init(){
         hdr.ascon.s0= input_str ^ 0xee9398aadb67f03d;
         hdr.ascon.s1= 0x8bb21831c60f1002;   
@@ -147,16 +147,14 @@ control MyIngress(
         hdr.ascon.s3= 0x43189921b8f8e3e8;
         hdr.ascon.s4= 0x348fa5c9d525e140;
     }
+    //first pass init
     action first_pass(){
-		//first pass init
-
 		hdr.ascon.curr_round =0x0;
         ascon_init();
-
         // hdr.ascon_meta.setValid();
 		// routing_decision();
 	}
-
+    //constant addition at the start of round using a table
     action addition(bit<64> const_i) {
         hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;
     }
@@ -190,7 +188,7 @@ control MyIngress(
         meta.t3 = meta.t3 ^ meta.t2;
         meta.t2 = ~meta.t2;
     }
-
+    //making a copy of meta variables for using parallely in actions
     action copy_meta() {
         meta.u0 = meta.t0;
         meta.u1 = meta.t1;
@@ -199,7 +197,7 @@ control MyIngress(
         meta.u4 = meta.t4;
     }
 
-
+//First layer--for obtaining hdr.s0
     action diffusion_0_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p0= meta.t0[18:0] ++ meta.t0[63:51];  }
@@ -208,18 +206,15 @@ control MyIngress(
     action diffusion_1_0 () {
         // ROR(t.x[0], 19)
         @in_hash { meta.p1 = meta.t0[50:19]; }
-        // ROR(t.x[1], 61) 
     }
 
     action diffusion_2_0 () {
         // ROR(t.x[0], 28);
         @in_hash { meta.q0 = meta.u0[27:0] ++ meta.u0[63:60]; }
-        // ROR(t.x[1], 39);
     }
     action diffusion_3_0 () {
         // ROR(t.x[0], 28);
         @in_hash { meta.q1 = meta.u0[59:28]; }
-        // ROR(t.x[1], 39);
     }
 
     action diffusion_4_0() {
@@ -245,7 +240,7 @@ control MyIngress(
     }
 
 
-// for the second diffusion layer
+//Second layer--for obtaining hdr.s1
     action diffusion_0_1 () {
         @in_hash { meta.p2 = meta.t1[60:29];        }
         // ROR(t.x[1], 61) 
@@ -286,7 +281,7 @@ control MyIngress(
     }
 
 
-// for the third diffusion layer
+//Third layer--for obtaining hdr.s2
     action diffusion_0_2 () {
         @in_hash { meta.p4 = meta.t2[0:0]++meta.t2[63:33];  }
         // ROR(t.x[2], 1)
@@ -327,7 +322,7 @@ control MyIngress(
     }
 
 
-// for the fourth diffusion layer
+//Fourth layer--for obtaining hdr.s3
     action diffusion_0_3 () {
         @in_hash { meta.p6= meta.t3[9:0]++meta.t3[63:42];  }
         // ROR(t.x[3], 10)
@@ -368,7 +363,7 @@ control MyIngress(
     }
 
 
-// for the final diffusion layer
+//Final layer--for obtaining hdr.s4
     action diffusion_0_4 () {
         @in_hash { meta.p8 = meta.t4[6:0]++meta.t4[63:39];  }
         // ROR(t.x[4], 7)
@@ -407,14 +402,14 @@ control MyIngress(
         @in_hash { hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p9; } 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
-
+    // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
         hdr.ethernet.ether_type=ETHERTYPE_RECIR;
     }
-    
+
 
     table add_const{
         key={
@@ -463,6 +458,12 @@ control MyIngress(
             first_pass();
         }
 
+        //check for 12th round after which the padding stage occurs
+        /* absorb final plaintext block */
+        //   s.x[0] ^= LOADBYTES(in, len);
+        //   s.x[0] ^= PAD(len);
+        //   P12(&s);
+        //   Currently working for only 8 byte string so can simply XOR with 0x80
         if(hdr.ascon.curr_round==0xc){
             hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
         }
