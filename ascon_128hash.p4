@@ -35,10 +35,6 @@ header ascon_h {
 
 header ascon_out_h{
     bit<64>   o0;
-    // bit<16>   o1;
-    // bit<16>   o2;
-    // bit<16>   o3;
-
 }
 
 struct my_ingress_headers_t {
