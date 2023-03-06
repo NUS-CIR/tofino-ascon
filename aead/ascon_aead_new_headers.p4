@@ -7,14 +7,20 @@
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
-const bit<320> IV = 0xee9398aadb67f03d8bb21831c60f1002b48a92db98d5da6243189921b8f8e3e8348fa5c9d525e140;
-
+const bit<64> IV = 0x80400c0600000000;
 const bit<64> input_str=0x0001020304050607;//64 bit string input supported
+
+#define K_0 0x0001020304050607;
+#define K_1 0x08090A0B0C0D0E0F;
+#define N_0 0x0001020304050607;
+#define N_1 0x08090A0B0C0D0E0F;
+
 
 typedef bit<16> ether_type_t;
 const bit<16> ETHERTYPE_TPID = 0x8100;
 const bit<16> ETHERTYPE_NORM = 0x8120;
 const bit<16> ETHERTYPE_RECIR = 0x8133; //using custom ether_type for checking b/w a normal and a recirc packet
+const bit<16> ETHERTYPE_RECIR0 = 0x8134;
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
 
 header ethernet_h {
@@ -35,12 +41,21 @@ header ascon_h {
 
 header ascon_out_h{
     bit<64>   o0;
+    bit<64>   o1;
+}
+
+header ascon_out_final_h{
+    bit<64>   f0;
+    bit<64>   f1;
+    bit<64>   f2;
+    bit<64>   f3;
 }
 
 struct my_ingress_headers_t {
     ethernet_h   ethernet;
     ascon_h      ascon;
     ascon_out_h ascon_out;
+    ascon_out_final_h ascon_final;
 }
 
 struct my_ingress_metadata_t {
@@ -50,33 +65,10 @@ struct my_ingress_metadata_t {
     bit<64> t3;
     bit<64> t4;
 
-    // bit<64> u0;
-    // bit<64> u1;
-    // bit<64> t2;
-    // bit<64> t3;
-    // bit<64> t4;
-
-    bit<64> p;     // intermediate variables for the actions, needed to change from 64 bit to
-    // bit<32> p[31:0];     // 32-bit because of PHV exhaustion 
-    // bit<32> p2;
-    // bit<32> p3;
-    // bit<32> p4;
-    // bit<32> p5;
-    // bit<32> p6;
-    // bit<32> p7;
-    // bit<32> p8;
-    // bit<32> p9;
-
+    bit<64> p;   
     bit<64> q;
-    // bit<32> q[31:0];
-//     bit<32> q2;
-//     bit<32> q3;
-//     bit<32> q4;
-//     bit<32> q5;
-//     bit<32> q6;
-//     bit<32> q7;
-//     bit<32> q8;
-//     bit<32> q9;
+    bit<64> p1;   
+    bit<64> q1;
 }
 
 parser MyIngressParser(packet_in        pkt,
@@ -98,20 +90,29 @@ parser MyIngressParser(packet_in        pkt,
         // transition parse_ascon;
         
         transition select(hdr.ethernet.ether_type){
-            ETHERTYPE_NORM:parse_ascon;
-            ETHERTYPE_RECIR:parse_ascon_out;
-            default:accept;
+            // ETHERTYPE_NORM:parse_ascon;
+            ETHERTYPE_RECIR0:parse_ascon_out_0;
+            ETHERTYPE_RECIR:parse_ascon_final;
+            default:parse_ascon;
         }
     }
 
     state parse_ascon {
         pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_out);
         transition accept;
     }
     
-    state parse_ascon_out {
+    state parse_ascon_out_0 {
         pkt.extract(hdr.ascon);
-        pkt.extract(hdr.ascon_out);
+        // pkt.extract(hdr.ascon_out);
+        transition accept;
+    }
+
+    state parse_ascon_final {
+        pkt.extract(hdr.ascon);
+        // pkt.advance(64);
+        pkt.extract(hdr.ascon_final);
         transition accept;
     }
 }
@@ -140,17 +141,22 @@ control MyIngress(
         };
     //fixed initialization stage
     action ascon_init(){
-        hdr.ascon.s0= input_str ^ 0xee9398aadb67f03d;
-        hdr.ascon.s1= 0x8bb21831c60f1002;   
-        hdr.ascon.s2= 0xb48a92db98d5da62;
-        hdr.ascon.s3= 0x43189921b8f8e3e8;
-        hdr.ascon.s4= 0x348fa5c9d525e140;
+        //x0=bc830fbef3a1651b x1=487a66865036b909 x2=a031b0c5810c1cd6 x3=dd7ce72083702217 x4=9b17156ede557ce6
+        // keeping till after the 2nd key xor + domain seperation into account
+        hdr.ascon.s0= input_str ^ 0xbc830fbef3a1651b;
+        hdr.ascon.s1= 0x487a66865036b909;   
+        hdr.ascon.s2= 0xa031b0c5810c1cd6;
+        hdr.ascon.s3= 0xdd7ce72083702217;
+        hdr.ascon.s4= 0x9b17156ede557ce6;
+        hdr.ascon_out.o0=hdr.ascon.s0;
+        hdr.ascon_out.o1=0x0;
     }
     //first pass init
     action first_pass(){
 		hdr.ascon.curr_round =0x0;
         ascon_init();
-        hdr.ascon_out.setValid();
+        // hdr.ascon_out.setValid();
+        hdr.ethernet.ether_type=ETHERTYPE_RECIR0;
 		// routing_decision();
 	}
     //constant addition at the start of round using a table
@@ -187,14 +193,6 @@ control MyIngress(
         meta.t3 = meta.t3 ^ meta.t2;
         meta.t2 = ~meta.t2;
     }
-    //making a copy of meta variables for using parallely in actions
-    // action copy_meta() {
-    //     meta.t0 = meta.t0;
-    //     meta.t1 = meta.t1;
-    //     meta.u2 = meta.t2;
-    //     meta.t3 = meta.t3;
-    //     meta.t4 = meta.t4;
-    // }
 
 //First layer--for obtaining hdr.s0
     action diffusion_0_0 () {
@@ -430,13 +428,12 @@ control MyIngress(
         // hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0]; 
         //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
     }
-
     // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
         ig_tm_md.ucast_egress_port[6:0] = 0x6;
-        hdr.ethernet.ether_type=ETHERTYPE_RECIR;
+        // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
     }
 
 
@@ -450,66 +447,28 @@ control MyIngress(
         }
         size=64;
         const entries ={
-            0:addition(0xf0);
-            1:addition(0xe1);
-            2:addition(0xd2);         
-            3:addition(0xc3);
-            4:addition(0xb4);
-            5:addition(0xa5);
-            6:addition(0x96);
-            7:addition(0x87);
-            8:addition(0x78);
-            9:addition(0x69);
-            10:addition(0x5a);
-            11:addition(0x4b);
-            12:addition(0xf0);
-            13:addition(0xe1);
-            14:addition(0xd2);         
-            15:addition(0xc3);
-            16:addition(0xb4);
-            17:addition(0xa5);
-            18:addition(0x96);
-            19:addition(0x87);
-            20:addition(0x78);
-            21:addition(0x69);
-            22:addition(0x5a);
-            23:addition(0x4b);
-            24:addition(0xf0);
-            25:addition(0xe1);
-            26:addition(0xd2);         
-            27:addition(0xc3);
-            28:addition(0xb4);
-            29:addition(0xa5);
-            30:addition(0x96);
-            31:addition(0x87);
-            32:addition(0x78);
-            33:addition(0x69);
-            34:addition(0x5a);
-            35:addition(0x4b);
-            // 36:addition(0xf0);
-            // 37:addition(0xe1);
-            // 38:addition(0xd2);         
-            // 39:addition(0xc3);
-            // 40:addition(0xb4);
-            // 41:addition(0xa5);
-            // 42:addition(0x96);
-            // 43:addition(0x87);
-            // 44:addition(0x78);
-            // 45:addition(0x69);
-            // 46:addition(0x5a);
-            // 47:addition(0x4b);
-            // 48:addition(0xf0);
-            // 49:addition(0xe1);
-            // 50:addition(0xd2);         
-            // 51:addition(0xc3);
-            // 52:addition(0xb4);
-            // 53:addition(0xa5);
-            // 54:addition(0x96);
-            // 55:addition(0x87);
-            // 56:addition(0x78);
-            // 57:addition(0x69);
-            // 58:addition(0x5a);
-            // 59:addition(0x4b);
+            0:addition(0x96);
+            1:addition(0x87);
+            2:addition(0x78);
+            3:addition(0x69);
+            4:addition(0x5a);
+            5:addition(0x4b);
+            6:addition(0xf0);
+            7:addition(0xe1);
+            8:addition(0xd2);         
+            9:addition(0xc3);
+            10:addition(0xb4);
+            11:addition(0xa5);
+            12:addition(0x96);
+            13:addition(0x87);
+            14:addition(0x78);
+            15:addition(0x69);
+            16:addition(0x5a);
+            17:addition(0x4b);
+            18:addition(0xf0);
+            19:addition(0xe1);
+            20:addition(0xd2);         
+           
         }
     } 
 
@@ -519,8 +478,17 @@ control MyIngress(
         leave_data.execute(0x0);
 
         //Initialization for the first packet
-        if(hdr.ethernet.ether_type==ETHERTYPE_NORM){
+        if(hdr.ascon.curr_round==0x0){
             first_pass();
+        }
+
+        if(hdr.ethernet.ether_type==ETHERTYPE_RECIR){
+            meta.p1=hdr.ascon_final.f0;
+            meta.q1=hdr.ascon_final.f1;
+            hdr.ascon_final.f0=hdr.ascon_final.f2;
+            hdr.ascon_final.f1=meta.p1;
+            hdr.ascon_final.f2=meta.q1;
+            ig_tm_md.ucast_egress_port =(bit<9>)0x9;
         }
 
         //check for 12th round after which the padding stage occurs
@@ -529,40 +497,31 @@ control MyIngress(
         //   s.x[0] ^= PAD(len);
         //   p[31:0]2(&s);
         //   Currently working for only 8 byte string so can simply XOR with 0x80
-        if(hdr.ascon.curr_round==0xc){
+        if(hdr.ascon.curr_round==0x6){
+            // hdr.ascon_out.o0=hdr.ascon.s0;
+            // hdr.ascon_out.o1=hdr.ascon.s0^0x0;
+            hdr.ascon.s0=hdr.ascon.s0^0x0;
             hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
+            hdr.ascon.s1=hdr.ascon.s1^K_0;
+            hdr.ascon.s2=hdr.ascon.s2^K_1;
+
         }
         
-        // check for final round(24th round)
-        if(hdr.ascon.curr_round==0x18){
+        // check for final round(18th round)
+        if(hdr.ascon.curr_round==0x12){
             // hdr.ethernet.ether_type=ETHERTYPE_NORM;
             // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
-            hdr.ascon_out.o0=hdr.ascon.s0;
-            // hdr.ascon_out.o0=hdr.ascon.s0[63:48];
-            // hdr.ascon_out.o1=hdr.ascon.s0[47:32];
-            // hdr.ascon_out.o2=hdr.ascon.s0[31:16];
-            // hdr.ascon_out.o3=hdr.ascon.s0[15:0];
+            // hdr.ascon.s0=hdr.ascon_out.o0;
+            hdr.ascon_out.o0=hdr.ascon.s3 ^ K_0; 
+            hdr.ascon_out.o1=hdr.ascon.s4 ^ K_1;
+            hdr.ascon_out.setValid();
+            // hdr.ascon.s1=hdr.ascon_out.o1;
+            hdr.ethernet.ether_type=ETHERTYPE_RECIR;
+            // ig_tm_md.ucast_egress_port =(bit<9>)0x9;
             //reg.write(0,0xb);
         }
 
-        if(hdr.ascon.curr_round==0x24){
-            // hdr.ethernet.ether_type=ETHERTYPE_NORM;
-            // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
-            hdr.ascon.s1=hdr.ascon.s0;
-            hdr.ascon.s0=hdr.ascon_out.o0;
-            // @in_hash{ 
-            // hdr.ascon.s0=hdr.ascon_out.o0 ++ hdr.ascon_out.o1 ++ hdr.ascon_out.o2++  hdr.ascon_out.o3;
-            // hdr.ascon.s0[31:0] =hdr.ascon_out.o1;
-        
-            // }
-
-            // @in_hash{ hdr.ascon.s1=hdr.ascon_out.o2++hdr.ascon_out.o3;}
-            // @in_hash{ hdr.ascon.s2=hdr.ascon_out.o4++hdr.ascon_out.o5;}
-
-            ig_tm_md.ucast_egress_port =(bit<9>)0x9;
-            //reg.write(0,0xb);
-        }
-        else{
+        if(hdr.ascon.curr_round<0x12){
             // /* addition of round constant */
             add_const.apply();
 
@@ -587,14 +546,6 @@ control MyIngress(
             // t.x[3] ^= t.x[2];
             // t.x[2] = ~t.x[2];
             end_sbox();
-            // copy_meta();
-            
-            // /* linear diffusion layer */
-            // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-            // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-            // s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-            // s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-            // s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
 
             // for hdr.s0
             diffusion_0_0();
@@ -663,7 +614,12 @@ control MyIngressDeparser(packet_out pkt,
     apply {
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.ascon);
+        // if(hdr.ascon_out.isValid()){    
         pkt.emit(hdr.ascon_out);
+        // }
+        // if(hdr.ascon_final.isValid()){
+        pkt.emit(hdr.ascon_final);
+        // }
     }
 }
 
