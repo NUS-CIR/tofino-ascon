@@ -488,7 +488,7 @@ control MyIngress(
             ig_tm_md.ucast_egress_port =(bit<9>)0x9;
             //reg.write(0,0xb);
         }
-        if(hdr.ascon.curr_round<0x12){
+        else{
             // /* addition of round constant */
             add_const.apply();
 
