@@ -34,7 +34,6 @@ header ascon_h {
     bit<64>   s2;
     bit<64>   s3;
     bit<64>   s4;
-    bit<16>   dest_port;
     bit<8>    curr_round;
 }
 
@@ -43,10 +42,22 @@ header ascon_out_h{
     bit<64>   o1;
 }
 
+header bridge_h{
+    bit<64> t0;
+    bit<64> t1;
+    bit<64> t2;
+    bit<64> t3;
+    bit<64> t4;
+
+    bit<64> p;   
+    bit<64> q;
+}
+
 struct my_ingress_headers_t {
     ethernet_h   ethernet;
     ascon_h      ascon;
     ascon_out_h ascon_out;
+    bridge_h    bridge;
 }
 
 struct my_ingress_metadata_t {
@@ -79,20 +90,21 @@ parser MyIngressParser(packet_in        pkt,
         // transition parse_ascon;
         
         transition select(hdr.ethernet.ether_type){
-            ETHERTYPE_NORM:parse_ascon;
+            // ETHERTYPE_NORM:parse_ascon;
             ETHERTYPE_RECIR:parse_ascon_out;
             default:accept;
         }
     }
 
-    state parse_ascon {
-        pkt.extract(hdr.ascon);
-        transition accept;
-    }
+    // state parse_ascon {
+    //     pkt.extract(hdr.ascon);
+    //     transition accept;
+    // }
     
     state parse_ascon_out {
         pkt.extract(hdr.ascon);
         pkt.extract(hdr.ascon_out);
+        pkt.extract(hdr.bridge);
         transition accept;
     }
 }
@@ -132,6 +144,8 @@ control MyIngress(
     }
     //first pass init
     action first_pass(){
+        hdr.ascon.setValid();
+        hdr.bridge.setValid();
 		hdr.ascon.curr_round =0x0;
         ascon_init();
         hdr.ascon_out.setValid();
@@ -172,240 +186,7 @@ control MyIngress(
         meta.t2 = ~meta.t2;
     }
 
-//First layer--for obtaining hdr.s0
-    action diffusion_0_0 () {
-        // ROR(t.x[0], 19)
-        @in_hash { meta.p[63:32]= meta.t0[18:0] ++ meta.t0[63:51];  }
-    }
-    
-    action diffusion_1_0 () {
-        // ROR(t.x[0], 19)
-        @in_hash { meta.p[31:0] = meta.t0[50:19]; }
-        // meta.p[31:0] = meta.t0[50:19]; 
-    }
 
-    action diffusion_2_0 () {
-        // ROR(t.x[0], 28);
-        @in_hash { meta.q[63:32] = meta.t0[27:0] ++ meta.t0[63:60]; }
-    }
-    action diffusion_3_0 () {
-        // ROR(t.x[0], 28);
-        @in_hash { meta.q[31:0] = meta.t0[59:28]; }
-        // meta.q[31:0] = meta.t0[59:28];
-    }
-
-    action diffusion_4_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-    }
-
-    action diffusion_5_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-    }
-
-    action diffusion_6_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32];
-        // @in_hash { hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32]; } 
-
-    }
-
-    action diffusion_7_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0];
-        // @in_hash { hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0]; } 
-    }
-
-
-//Second layer--for obtaining hdr.s1
-    action diffusion_0_1 () {
-        @in_hash { meta.p[63:32] = meta.t1[60:29];        }
-        // meta.p[63:32] = meta.t1[60:29];  
-        // ROR(t.x[1], 61) 
-    }
-    
-    action diffusion_1_1 () {
-        @in_hash { meta.p[31:0] = meta.t1[28:0]++ meta.t1[63:61]; }
-        // ROR(t.x[1], 61) 
-    }
-
-    action diffusion_2_1 () {
-        @in_hash { meta.q[63:32] = meta.t1[38:7]; }
-        // meta.q[63:32] = meta.t1[38:7];
-        // ROR(t.x[1], 39);
-    }
-    action diffusion_3_1 () {
-        @in_hash { meta.q[31:0] = meta.t1[6:0]++ meta.t1[63:39]; }
-        // ROR(t.x[1], 39);
-    }
-
-    action diffusion_4_1() {
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_5_1() {
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_6_1() {
-        // @in_hash { hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p[63:32]; } 
-        hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p[63:32]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_7_1() {
-        // @in_hash { hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p[31:0]; } 
-        hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p[31:0];
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-
-//Third layer--for obtaining hdr.s2
-    action diffusion_0_2 () {
-        @in_hash { meta.p[63:32] = meta.t2[0:0]++meta.t2[63:33];  }
-        // ROR(t.x[2], 1)
-    }
-    
-    action diffusion_1_2 () {
-        @in_hash { meta.p[31:0] = meta.t2[32:1]; }
-        // meta.p[31:0] = meta.t2[32:1]; 
-        // ROR(t.x[2], 1)
-    }
-
-    action diffusion_2_2 () {
-        @in_hash { meta.q[63:32] = meta.t2[5:0]++meta.t2[63:38]; }
-        // ROR(t.x[2], 6)
-    }
-    action diffusion_3_2 () {
-        @in_hash { meta.q[31:0] = meta.t2[37:6]; }
-        // meta.q[31:0] = meta.t2[37:6]; 
-        // ROR(t.x[2], 6)
-    }
-
-    action diffusion_4_2() {
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_5_2() {
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_6_2() {
-        // @in_hash { hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32]; } 
-        hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32]; 
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_7_2() {
-        // @in_hash { hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0]; } 
-        hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-
-//Fourth layer--for obtaining hdr.s3
-    action diffusion_0_3 () {
-        @in_hash { meta.p[63:32]= meta.t3[9:0]++meta.t3[63:42];  }
-        // ROR(t.x[3], 10)
-    }
-    
-    action diffusion_1_3 () {
-        @in_hash { meta.p[31:0] = meta.t3[41:10]; }
-        // meta.p[31:0] = meta.t3[41:10]; 
-        // ROR(t.x[3], 10)
-    }
-
-    action diffusion_2_3 () {
-        @in_hash { meta.q[63:32] = meta.t3[16:0]++meta.t3[63:49]; }
-        // ROR(t.x[3], 17)
-    }
-    action diffusion_3_3 () {
-        @in_hash { meta.q[31:0] = meta.t3[48:17]; }
-        // meta.q[31:0] = meta.t3[48:17];
-        // ROR(t.x[3], 17)
-    }
-
-    action diffusion_4_3() {
-        @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        // meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_5_3() {
-        @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        // meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; 
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_6_3() {
-        @in_hash { hdr.ascon.s3[63:32] = meta.t3[63:32]^ meta.p[63:32]; } 
-        // hdr.ascon.s3[63:32] = meta.t3[63:32]^ meta.p[63:32];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_7_3() {
-        @in_hash { hdr.ascon.s3[31:0] = meta.t3[31:0]^ meta.p[31:0]; } 
-        // hdr.ascon.s3[31:0] = meta.t3[31:0]^ meta.p[31:0];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-
-//Final layer--for obtaining hdr.s4
-    action diffusion_0_4 () {
-        @in_hash { meta.p[63:32] = meta.t4[6:0]++meta.t4[63:39];  }
-        // ROR(t.x[4], 7)
-    }
-    
-    action diffusion_1_4 () {
-        @in_hash { meta.p[31:0] = meta.t4[38:7]; }
-        // meta.p[31:0] = meta.t4[38:7]; 
-        // ROR(t.x[4], 7)
-    }
-
-    action diffusion_2_4 () {
-        @in_hash { meta.q[63:32] = meta.t4[40:9]; }
-        // meta.q[63:32] = meta.t4[40:9];
-        // ROR(t.x[4], 41)
-    }
-    action diffusion_3_4 () {
-        @in_hash { meta.q[31:0] = meta.t4[8:0]++ meta.t4[63:41]; }
-        // ROR(t.x[4], 41)
-    }
-
-    action diffusion_4_4() {
-        @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        // meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_5_4() {
-        @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        // meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_6_4() {
-        @in_hash { hdr.ascon.s4[63:32] = meta.t4[63:32]^ meta.p[63:32]; } 
-        // hdr.ascon.s4[63:32] = meta.t4[63:32]^ meta.p[63:32];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_7_4() {
-        @in_hash { hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0]; } 
-        // hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0]; 
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
     // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
@@ -450,6 +231,40 @@ control MyIngress(
         }
     } 
 
+    table add_const2{
+        key={
+            hdr.ascon.curr_round:exact;
+        }
+        actions= {
+            addition(); 
+            @defaultonly NoAction;
+        }
+        size=64;
+        const entries ={
+            0:addition(0x96);
+            1:addition(0x87);
+            2:addition(0x78);
+            3:addition(0x69);
+            4:addition(0x5a);
+            5:addition(0x4b);
+            6:addition(0xf0);
+            7:addition(0xe1);
+            8:addition(0xd2);         
+            9:addition(0xc3);
+            10:addition(0xb4);
+            11:addition(0xa5);
+            12:addition(0x96);
+            13:addition(0x87);
+            14:addition(0x78);
+            15:addition(0x69);
+            16:addition(0x5a);
+            17:addition(0x4b);
+            18:addition(0xf0);
+            19:addition(0xe1);
+            20:addition(0xd2);         
+           
+        }
+    } 
 
     apply {
         //pkt count register
@@ -515,56 +330,61 @@ control MyIngress(
             end_sbox();
 
             // for hdr.s0
-            diffusion_0_0();
-            diffusion_1_0();
-            diffusion_2_0();
-            diffusion_3_0();
-            diffusion_4_0();
-            diffusion_5_0();
-            diffusion_6_0();
-            diffusion_7_0();
+            @in_hash{meta.p[63:32] = (meta.t0[18:0] ++ meta.t0[63:51]) ^ (meta.t0[27:0] ++ meta.t0[63:60]);}
+            @in_hash{meta.p[31:0] = meta.t0[50:19] ^ meta.t0[59:28];}
+            hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32];
+            hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0];
+
 
             // for hdr.s1
-            diffusion_0_1();
-            diffusion_1_1();
-            diffusion_2_1();
-            diffusion_3_1();
-            diffusion_4_1();
-            diffusion_5_1();
-            diffusion_6_1();
-            diffusion_7_1();
+            @in_hash{meta.q[63:32] = (meta.t1[60:29]) ^ (meta.t1[38:7]);}
+            @in_hash{meta.q[31:0] = (meta.t1[28:0]++ meta.t1[63:61]) ^ (meta.t1[6:0]++ meta.t1[63:39]);}
+            hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.q[63:32];
+            hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.q[31:0];
 
             // for hdr.s2
-            diffusion_0_2();
-            diffusion_1_2();
-            diffusion_2_2();
-            diffusion_3_2();
-            diffusion_4_2();
-            diffusion_5_2();
-            diffusion_6_2();
-            diffusion_7_2();
+            @in_hash{meta.p[63:32] = (meta.t2[0:0]++meta.t2[63:33]) ^ (meta.t2[5:0]++meta.t2[63:38]);}
+            @in_hash{meta.p[31:0] = meta.t2[32:1] ^ meta.t2[37:6];}
+            hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32];
+            hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0];
 
             // for hdr.s3
-            diffusion_0_3(); 
-            diffusion_1_3();
-            diffusion_2_3();
-            diffusion_3_3();
-            diffusion_4_3();
-            diffusion_5_3();
-            diffusion_6_3();
-            diffusion_7_3();        
+            @in_hash{meta.q[63:32] = (meta.t3[9:0]++meta.t3[63:42]) ^ (meta.t3[16:0]++meta.t3[63:49]);}
+            @in_hash{meta.q[31:0] = meta.t3[41:10]^ meta.t3[48:17];}
+            hdr.ascon.s3[63:32] = meta.t3[63:32] ^ meta.q[63:32];
+            hdr.ascon.s3[31:0] = meta.t3[31:0] ^ meta.q[31:0];       
 
-            // for hdr.s4
-            diffusion_0_4();
-            diffusion_1_4();
-            diffusion_2_4();
-            diffusion_3_4();
-            diffusion_4_4();
-            diffusion_5_4();
-            diffusion_6_4();
-            diffusion_7_4();
+            // // for hdr.s4
+
+            @in_hash{meta.p[63:32] = (meta.t4[6:0]++meta.t4[63:39]) ^ (meta.t4[40:9]);}
+            @in_hash{meta.p[31:0] = meta.t4[38:7] ^ meta.t4[8:0]++ meta.t4[63:41];}
+            hdr.ascon.s4[63:32] = meta.t4[63:32] ^ meta.p[63:32];
+            hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0];
 
             do_recirculate();
+
+            add_const2.apply();
+
+            substitution();
+            start_sbox_0();
+            start_sbox_1();
+            end_sbox();
+
+            hdr.bridge.t0=meta.t0;
+
+            hdr.bridge.t1=meta.t1;
+
+            hdr.bridge.t2=meta.t2;
+
+            hdr.bridge.t3=meta.t3;
+
+            hdr.bridge.t4=meta.t4;
+            hdr.bridge.p=meta.p;
+            hdr.bridge.q=meta.q;
+
+
+
+
         }
     }
 }
@@ -593,11 +413,23 @@ control MyIngressDeparser(packet_out pkt,
     /***********************  H E A D E R S  ************************/
 
 struct my_egress_headers_t {
+    ethernet_h   ethernet;
+    ascon_h      ascon;
+    ascon_out_h ascon_out;
+    bridge_h bridge; 
 }
 
     /********  G L O B A L   E G R E S S   M E T A D A T A  *********/
 
 struct my_egress_metadata_t {
+    bit<64> t0;
+    bit<64> t1;
+    bit<64> t2;
+    bit<64> t3;
+    bit<64> t4;
+
+    bit<64> p;   
+    bit<64> q;
 }
 
     /***********************  P A R S E R  **************************/
@@ -612,6 +444,29 @@ parser MyEgressParser(packet_in        pkt,
     /* This is a mandatory state, required by Tofino Architecture */
     state start {
         pkt.extract(eg_intr_md);
+        transition parse_ethernet;
+    }
+
+    state parse_ethernet {
+        pkt.extract(hdr.ethernet);
+        // transition parse_ascon;
+        
+        transition select(hdr.ethernet.ether_type){
+            ETHERTYPE_NORM:parse_ascon;
+            ETHERTYPE_RECIR:parse_ascon_out;
+            default:accept;
+        }
+    }
+
+    state parse_ascon {
+        pkt.extract(hdr.ascon);
+        transition accept;
+    }
+    
+    state parse_ascon_out {
+        pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_out);
+        pkt.extract(hdr.bridge);
         transition accept;
     }
 }
@@ -628,7 +483,168 @@ control MyEgress(
     inout egress_intrinsic_metadata_for_deparser_t     eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t  eg_oport_md)
 {
+    action addition(bit<64> const_i) {
+        hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;
+    }
+
+    action substitution() {
+        hdr.ascon.s0 = hdr.ascon.s0 ^ hdr.ascon.s4;
+        hdr.ascon.s4 = hdr.ascon.s4 ^ hdr.ascon.s3;
+      //  hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;              //TODO:depends on implementation
+        hdr.ascon.s2 = hdr.ascon.s2 ^ hdr.ascon.s1;
+    }
+
+    action start_sbox_0 () {
+        meta.t0 = ~hdr.ascon.s1 & hdr.ascon.s2;
+        meta.t1 = ~hdr.ascon.s2 & hdr.ascon.s3;
+        meta.t2 = ~hdr.ascon.s3 & hdr.ascon.s4;
+        meta.t3 = ~hdr.ascon.s4 & hdr.ascon.s0;
+        meta.t4 = ~hdr.ascon.s0 & hdr.ascon.s1;
+    }
+    
+    action start_sbox_1 () {
+        meta.t0 = hdr.ascon.s0 ^ meta.t0;
+        meta.t1 = hdr.ascon.s1 ^ meta.t1;
+        meta.t2 = hdr.ascon.s2 ^ meta.t2;
+        meta.t3 = hdr.ascon.s3 ^ meta.t3;
+        meta.t4 = hdr.ascon.s4 ^ meta.t4;
+    }
+
+    action end_sbox() {
+        meta.t1 = meta.t1 ^ meta.t0;
+        meta.t0 = meta.t0 ^ meta.t4;
+        meta.t3 = meta.t3 ^ meta.t2;
+        meta.t2 = ~meta.t2;
+    }
+
+    table add_const{
+        key={
+            hdr.ascon.curr_round:exact;
+        }
+        actions= {
+            addition(); 
+            @defaultonly NoAction;
+        }
+        size=64;
+        const entries ={
+            0:addition(0x96);
+            1:addition(0x87);
+            2:addition(0x78);
+            3:addition(0x69);
+            4:addition(0x5a);
+            5:addition(0x4b);
+            6:addition(0xf0);
+            7:addition(0xe1);
+            8:addition(0xd2);         
+            9:addition(0xc3);
+            10:addition(0xb4);
+            11:addition(0xa5);
+            12:addition(0x96);
+            13:addition(0x87);
+            14:addition(0x78);
+            15:addition(0x69);
+            16:addition(0x5a);
+            17:addition(0x4b);
+            18:addition(0xf0);
+            19:addition(0xe1);
+            20:addition(0xd2);         
+           
+        }
+    } 
+    
     apply {
+            if(hdr.ascon.curr_round==0x12){
+
+            }
+            else{
+            //for 2nd pass
+            // for hdr.s0
+            meta.t0=hdr.bridge.t0;
+            meta.t1=hdr.bridge.t1;
+            meta.t2=hdr.bridge.t2;
+            meta.t3=hdr.bridge.t3;
+            meta.t4=hdr.bridge.t4;
+            meta.p=hdr.bridge.p;
+            meta.q=hdr.bridge.q;
+
+
+
+            @in_hash{meta.p[63:32] = (meta.t0[18:0] ++ meta.t0[63:51]) ^ (meta.t0[27:0] ++ meta.t0[63:60]);}
+            @in_hash{meta.p[31:0] = meta.t0[50:19] ^ meta.t0[59:28];}
+            hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32];
+            hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0];
+
+
+            // for hdr.s1
+            @in_hash{meta.q[63:32] = (meta.t1[60:29]) ^ (meta.t1[38:7]);}
+            @in_hash{meta.q[31:0] = (meta.t1[28:0]++ meta.t1[63:61]) ^ (meta.t1[6:0]++ meta.t1[63:39]);}
+            hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.q[63:32];
+            hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.q[31:0];
+
+            // for hdr.s2
+            @in_hash{meta.p[63:32] = (meta.t2[0:0]++meta.t2[63:33]) ^ (meta.t2[5:0]++meta.t2[63:38]);}
+            @in_hash{meta.p[31:0] = meta.t2[32:1] ^ meta.t2[37:6];}
+            hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32];
+            hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0];
+
+            // for hdr.s3
+            @in_hash{meta.q[63:32] = (meta.t3[9:0]++meta.t3[63:42]) ^ (meta.t3[16:0]++meta.t3[63:49]);}
+            @in_hash{meta.q[31:0] = meta.t3[41:10]^ meta.t3[48:17];}
+            hdr.ascon.s3[63:32] = meta.t3[63:32] ^ meta.q[63:32];
+            hdr.ascon.s3[31:0] = meta.t3[31:0] ^ meta.q[31:0];       
+
+            // // for hdr.s4
+
+            @in_hash{meta.p[63:32] = (meta.t4[6:0]++meta.t4[63:39]) ^ (meta.t4[40:9]);}
+            @in_hash{meta.p[31:0] = meta.t4[38:7] ^ meta.t4[8:0]++ meta.t4[63:41];}
+            hdr.ascon.s4[63:32] = meta.t4[63:32] ^ meta.p[63:32];
+            hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0];
+
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+
+
+            // for 3rd pass
+            add_const.apply();
+
+            substitution();
+            start_sbox_0();
+            start_sbox_1();
+            end_sbox();
+
+            // for hdr.s0
+            @in_hash{meta.p[63:32] = (meta.t0[18:0] ++ meta.t0[63:51]) ^ (meta.t0[27:0] ++ meta.t0[63:60]);}
+            @in_hash{meta.p[31:0] = meta.t0[50:19] ^ meta.t0[59:28];}
+            hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32];
+            hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0];
+
+
+            // for hdr.s1
+            @in_hash{meta.q[63:32] = (meta.t1[60:29]) ^ (meta.t1[38:7]);}
+            @in_hash{meta.q[31:0] = (meta.t1[28:0]++ meta.t1[63:61]) ^ (meta.t1[6:0]++ meta.t1[63:39]);}
+            hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.q[63:32];
+            hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.q[31:0];
+
+            // for hdr.s2
+            @in_hash{meta.p[63:32] = (meta.t2[0:0]++meta.t2[63:33]) ^ (meta.t2[5:0]++meta.t2[63:38]);}
+            @in_hash{meta.p[31:0] = meta.t2[32:1] ^ meta.t2[37:6];}
+            hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32];
+            hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0];
+
+            // for hdr.s3
+            @in_hash{meta.q[63:32] = (meta.t3[9:0]++meta.t3[63:42]) ^ (meta.t3[16:0]++meta.t3[63:49]);}
+            @in_hash{meta.q[31:0] = meta.t3[41:10]^ meta.t3[48:17];}
+            hdr.ascon.s3[63:32] = meta.t3[63:32] ^ meta.q[63:32];
+            hdr.ascon.s3[31:0] = meta.t3[31:0] ^ meta.q[31:0];       
+
+            // // for hdr.s4
+
+            @in_hash{meta.p[63:32] = (meta.t4[6:0]++meta.t4[63:39]) ^ (meta.t4[40:9]);}
+            @in_hash{meta.p[31:0] = meta.t4[38:7] ^ meta.t4[8:0]++ meta.t4[63:41];}
+            hdr.ascon.s4[63:32] = meta.t4[63:32] ^ meta.p[63:32];
+            hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0];
+
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
     }
 }
 
@@ -642,7 +658,9 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr);
+        pkt.emit(hdr.ethernet);
+        pkt.emit(hdr.ascon);
+        pkt.emit(hdr.ascon_out);
     }
 }
 

@@ -1168,7 +1168,7 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr);
+        pkt.emit(hdr.ethernet);
         pkt.emit(hdr.ascon);
         pkt.emit(hdr.ascon_out);
     }

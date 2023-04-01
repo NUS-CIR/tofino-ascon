@@ -172,240 +172,7 @@ control MyIngress(
         meta.t2 = ~meta.t2;
     }
 
-//First layer--for obtaining hdr.s0
-    action diffusion_0_0 () {
-        // ROR(t.x[0], 19)
-        @in_hash { meta.p[63:32]= meta.t0[18:0] ++ meta.t0[63:51];  }
-    }
-    
-    action diffusion_1_0 () {
-        // ROR(t.x[0], 19)
-        @in_hash { meta.p[31:0] = meta.t0[50:19]; }
-        // meta.p[31:0] = meta.t0[50:19]; 
-    }
 
-    action diffusion_2_0 () {
-        // ROR(t.x[0], 28);
-        @in_hash { meta.q[63:32] = meta.t0[27:0] ++ meta.t0[63:60]; }
-    }
-    action diffusion_3_0 () {
-        // ROR(t.x[0], 28);
-        @in_hash { meta.q[31:0] = meta.t0[59:28]; }
-        // meta.q[31:0] = meta.t0[59:28];
-    }
-
-    action diffusion_4_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-    }
-
-    action diffusion_5_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-    }
-
-    action diffusion_6_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32];
-        // @in_hash { hdr.ascon.s0[63:32] = meta.t0[63:32] ^ meta.p[63:32]; } 
-
-    }
-
-    action diffusion_7_0() {
-        // s->x[0] = t.x[0] ^ ROR(t.x[0], 19) ^ ROR(t.x[0], 28);
-        hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0];
-        // @in_hash { hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.p[31:0]; } 
-    }
-
-
-//Second layer--for obtaining hdr.s1
-    action diffusion_0_1 () {
-        @in_hash { meta.p[63:32] = meta.t1[60:29];        }
-        // meta.p[63:32] = meta.t1[60:29];  
-        // ROR(t.x[1], 61) 
-    }
-    
-    action diffusion_1_1 () {
-        @in_hash { meta.p[31:0] = meta.t1[28:0]++ meta.t1[63:61]; }
-        // ROR(t.x[1], 61) 
-    }
-
-    action diffusion_2_1 () {
-        @in_hash { meta.q[63:32] = meta.t1[38:7]; }
-        // meta.q[63:32] = meta.t1[38:7];
-        // ROR(t.x[1], 39);
-    }
-    action diffusion_3_1 () {
-        @in_hash { meta.q[31:0] = meta.t1[6:0]++ meta.t1[63:39]; }
-        // ROR(t.x[1], 39);
-    }
-
-    action diffusion_4_1() {
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_5_1() {
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_6_1() {
-        // @in_hash { hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p[63:32]; } 
-        hdr.ascon.s1[63:32] = meta.t1[63:32] ^ meta.p[63:32]; 
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-    action diffusion_7_1() {
-        // @in_hash { hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p[31:0]; } 
-        hdr.ascon.s1[31:0] = meta.t1[31:0] ^ meta.p[31:0];
-        // s->x[1] = t.x[1] ^ ROR(t.x[1], 61) ^ ROR(t.x[1], 39);
-    }
-
-
-//Third layer--for obtaining hdr.s2
-    action diffusion_0_2 () {
-        @in_hash { meta.p[63:32] = meta.t2[0:0]++meta.t2[63:33];  }
-        // ROR(t.x[2], 1)
-    }
-    
-    action diffusion_1_2 () {
-        @in_hash { meta.p[31:0] = meta.t2[32:1]; }
-        // meta.p[31:0] = meta.t2[32:1]; 
-        // ROR(t.x[2], 1)
-    }
-
-    action diffusion_2_2 () {
-        @in_hash { meta.q[63:32] = meta.t2[5:0]++meta.t2[63:38]; }
-        // ROR(t.x[2], 6)
-    }
-    action diffusion_3_2 () {
-        @in_hash { meta.q[31:0] = meta.t2[37:6]; }
-        // meta.q[31:0] = meta.t2[37:6]; 
-        // ROR(t.x[2], 6)
-    }
-
-    action diffusion_4_2() {
-        // @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_5_2() {
-        // @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_6_2() {
-        // @in_hash { hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32]; } 
-        hdr.ascon.s2[63:32] = meta.t2[63:32] ^ meta.p[63:32]; 
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-    action diffusion_7_2() {
-        // @in_hash { hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0]; } 
-        hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.p[31:0];
-        //   s->x[2] = t.x[2] ^ ROR(t.x[2], 1) ^ ROR(t.x[2], 6);
-    }
-
-
-//Fourth layer--for obtaining hdr.s3
-    action diffusion_0_3 () {
-        @in_hash { meta.p[63:32]= meta.t3[9:0]++meta.t3[63:42];  }
-        // ROR(t.x[3], 10)
-    }
-    
-    action diffusion_1_3 () {
-        @in_hash { meta.p[31:0] = meta.t3[41:10]; }
-        // meta.p[31:0] = meta.t3[41:10]; 
-        // ROR(t.x[3], 10)
-    }
-
-    action diffusion_2_3 () {
-        @in_hash { meta.q[63:32] = meta.t3[16:0]++meta.t3[63:49]; }
-        // ROR(t.x[3], 17)
-    }
-    action diffusion_3_3 () {
-        @in_hash { meta.q[31:0] = meta.t3[48:17]; }
-        // meta.q[31:0] = meta.t3[48:17];
-        // ROR(t.x[3], 17)
-    }
-
-    action diffusion_4_3() {
-        @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        // meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_5_3() {
-        @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        // meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; 
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_6_3() {
-        @in_hash { hdr.ascon.s3[63:32] = meta.t3[63:32]^ meta.p[63:32]; } 
-        // hdr.ascon.s3[63:32] = meta.t3[63:32]^ meta.p[63:32];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-    action diffusion_7_3() {
-        @in_hash { hdr.ascon.s3[31:0] = meta.t3[31:0]^ meta.p[31:0]; } 
-        // hdr.ascon.s3[31:0] = meta.t3[31:0]^ meta.p[31:0];
-        //   s->x[3] = t.x[3] ^ ROR(t.x[3], 10) ^ ROR(t.x[3], 17);
-    }
-
-
-//Final layer--for obtaining hdr.s4
-    action diffusion_0_4 () {
-        @in_hash { meta.p[63:32] = meta.t4[6:0]++meta.t4[63:39];  }
-        // ROR(t.x[4], 7)
-    }
-    
-    action diffusion_1_4 () {
-        @in_hash { meta.p[31:0] = meta.t4[38:7]; }
-        // meta.p[31:0] = meta.t4[38:7]; 
-        // ROR(t.x[4], 7)
-    }
-
-    action diffusion_2_4 () {
-        @in_hash { meta.q[63:32] = meta.t4[40:9]; }
-        // meta.q[63:32] = meta.t4[40:9];
-        // ROR(t.x[4], 41)
-    }
-    action diffusion_3_4 () {
-        @in_hash { meta.q[31:0] = meta.t4[8:0]++ meta.t4[63:41]; }
-        // ROR(t.x[4], 41)
-    }
-
-    action diffusion_4_4() {
-        @in_hash { meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32]; } 
-        // meta.p[63:32] = meta.p[63:32] ^ meta.q[63:32];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_5_4() {
-        @in_hash { meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0]; } 
-        // meta.p[31:0] = meta.p[31:0] ^ meta.q[31:0];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_6_4() {
-        @in_hash { hdr.ascon.s4[63:32] = meta.t4[63:32]^ meta.p[63:32]; } 
-        // hdr.ascon.s4[63:32] = meta.t4[63:32]^ meta.p[63:32];
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
-
-    action diffusion_7_4() {
-        @in_hash { hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0]; } 
-        // hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.p[31:0]; 
-        //   s->x[4] = t.x[4] ^ ROR(t.x[4], 7) ^ ROR(t.x[4], 41);
-    }
     // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
@@ -514,55 +281,30 @@ control MyIngress(
             // t.x[2] = ~t.x[2];
             end_sbox();
 
-            // for hdr.s0
-            diffusion_0_0();
-            diffusion_1_0();
-            diffusion_2_0();
-            diffusion_3_0();
-            diffusion_4_0();
-            diffusion_5_0();
-            diffusion_6_0();
-            diffusion_7_0();
+        // for hdr.s0
+            @in_hash{hdr.ascon.s0[63:32] = meta.t0[63:32] ^ (meta.t0[18:0] ++ meta.t0[63:51]) ^ (meta.t0[27:0] ++ meta.t0[63:60]);}
+            @in_hash{hdr.ascon.s0[31:0] = meta.t0[31:0] ^ meta.t0[50:19] ^ meta.t0[59:28];}
 
-            // for hdr.s1
-            diffusion_0_1();
-            diffusion_1_1();
-            diffusion_2_1();
-            diffusion_3_1();
-            diffusion_4_1();
-            diffusion_5_1();
-            diffusion_6_1();
-            diffusion_7_1();
 
-            // for hdr.s2
-            diffusion_0_2();
-            diffusion_1_2();
-            diffusion_2_2();
-            diffusion_3_2();
-            diffusion_4_2();
-            diffusion_5_2();
-            diffusion_6_2();
-            diffusion_7_2();
 
-            // for hdr.s3
-            diffusion_0_3(); 
-            diffusion_1_3();
-            diffusion_2_3();
-            diffusion_3_3();
-            diffusion_4_3();
-            diffusion_5_3();
-            diffusion_6_3();
-            diffusion_7_3();        
+        // for hdr.s1
+            @in_hash{hdr.ascon.s1[63:32] = meta.t1[63:32] ^ (meta.t1[60:29]) ^ (meta.t1[38:7]);}
+            @in_hash{hdr.ascon.s1[31:0] = meta.t1[31:0] ^ (meta.t1[28:0]++ meta.t1[63:61]) ^ (meta.t1[6:0]++ meta.t1[63:39]);}
 
-            // for hdr.s4
-            diffusion_0_4();
-            diffusion_1_4();
-            diffusion_2_4();
-            diffusion_3_4();
-            diffusion_4_4();
-            diffusion_5_4();
-            diffusion_6_4();
-            diffusion_7_4();
+
+        // for hdr.s2
+            @in_hash{hdr.ascon.s2[63:32] = meta.t2[63:32] ^ (meta.t2[0:0]++meta.t2[63:33]) ^ (meta.t2[5:0]++meta.t2[63:38]);}
+            @in_hash{hdr.ascon.s2[31:0] = meta.t2[31:0] ^ meta.t2[32:1] ^ meta.t2[37:6];}
+
+
+        // for hdr.s3
+            @in_hash{hdr.ascon.s3[63:32] = meta.t3[63:32] ^ (meta.t3[9:0]++meta.t3[63:42]) ^ (meta.t3[16:0]++meta.t3[63:49]);}
+            @in_hash{hdr.ascon.s3[31:0] = meta.t3[31:0] ^ meta.t3[41:10]^ meta.t3[48:17];}
+
+
+        // for hdr.s4
+            @in_hash{hdr.ascon.s4[63:32] = meta.t4[63:32] ^ (meta.t4[6:0]++meta.t4[63:39]) ^ (meta.t4[40:9]);}
+            @in_hash{hdr.ascon.s4[31:0] = meta.t4[31:0] ^ meta.t4[38:7] ^ meta.t4[8:0]++ meta.t4[63:41];}   
 
             do_recirculate();
         }
