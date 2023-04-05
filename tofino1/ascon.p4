@@ -8,14 +8,14 @@
 // #include "loops_macro.h"
 
 #define eg_port 0x9; //fow h/w needs to be 0x4 
-#define recir_port 0x68;//for h/w needs to be a loopbacked port
+#define recir_port 68;//for h/w needs to be a loopbacked port
 //new header for encrypton including length of msg to be encrypted
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
 const bit<32> AD = 0x00010203;
 const bit<64> IV = 0x80400c0600000000;
-const bit<64> input_str=0x0001020304050607;//64 bit string input supported
+// const bit<64> input_str=0x0001020304050607;//64 bit string input supported
 // const bit<128> input_str_2=0x000102030405060708090A0B0C0D0E0F;
 
 #define K_0 0x0001020304050607;
@@ -188,7 +188,8 @@ control MyIngress(
         if(hdr.ascon.curr_round==0x12){
             // hdr.ascon_out.o0=hdr.ascon.s0;
             // hdr.ascon_out.o1=hdr.ascon.s0^0x0;
-            abs_input();
+            abs_input_1();
+            abs_input_2();
         }
         //check for 24th round after which the padding stage occurs     
         /* absorb final plaintext block */
@@ -205,9 +206,11 @@ control MyIngress(
             // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
             // hdr.ascon.s0=hdr.ascon_out.o0;
             //could have had a store here
-            hdr.ascon_tag.tag0=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon_tag.tag1=hdr.ascon.s4 ^ K_1;
-        
+            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
+            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
+            hdr.ascon_tag.tag0=hdr.ascon.s3;
+            hdr.ascon_tag.tag1=hdr.ascon.s4;
+
             ig_tm_md.ucast_egress_port = eg_port;
             //reg.write(0,0xb);
         }
@@ -325,11 +328,12 @@ control MyEgress(
 {
     #include "ascon_actions.p4"
     apply {    
-        #include "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        // #include "ascon_round2.p4"
-        // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-
+        if(hdr.ascon.curr_round!=0x24){
+            #include "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            // #include "ascon_round2.p4"
+            // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
     }
 }
 

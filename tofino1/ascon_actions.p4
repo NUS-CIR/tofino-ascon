@@ -23,19 +23,21 @@
         hdr.ascon.s4= hdr.ascon.s4^ K_1;
         //XOR with 0 has no effect on the rest 32 bits
         hdr.ascon.s0[63:32]= hdr.ascon.s0[63:32]^ AD;
+        hdr.ascon.s0[31:24]=hdr.ascon.s0[31:24]^0x80;
     }
 
     //absorb plaintext
-    action abs_input(){
+    action abs_input_1(){
         //domain seperation
         hdr.ascon.s4= hdr.ascon.s4^0x1;
-        //
-        hdr.ascon.s0= hdr.ascon.s0^input_str;
+        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_64.input_str;
+    	// routing_decision();
+	}
+    action abs_input_2(){
         hdr.ascon_out.o0=hdr.ascon.s0;
         hdr.ascon_out.setValid();
         hdr.ethernet.ether_type=ETHERTYPE_RECIR;
-		// routing_decision();
-	}
+    }
 
     action abs_final(){
         hdr.ascon.s0=hdr.ascon.s0^0x0;
