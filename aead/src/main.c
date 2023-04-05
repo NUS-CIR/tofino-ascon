@@ -13,10 +13,10 @@ void main()
     unsigned char *out = malloc(33 * sizeof(*out));
     unsigned char m[16] = {0, 1, 2, 3, 4, 5, 6, 7,8,9,10,11,12,13,14,15};
     unsigned char c[32], h[32], t[32];
-    unsigned long long alen = 0;
+    unsigned long long alen = 4;
     // unsigned long long mlen = 8;
     unsigned long long clen = CRYPTO_ABYTES;
-    unsigned long long mlen = 16;
+    unsigned long long mlen = 8;
     // unsigned long long len= (unsigned long long)strlen(in);
     printf("the LENGTH is %llu bytes\n", mlen);
 
