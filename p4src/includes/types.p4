@@ -17,14 +17,14 @@ const round_type_t P6 = 2;
 const round_type_t P8 = 1; 
 const round_type_t P12 = 0;
 
+// TODO: need more detailed states here
 typedef bit<8>  state_t;
-const state_t RECV = 0;
-const state_t INIT = 1;
+const state_t STATE_RECV = 0;
+const state_t STATE_INIT = 1;
 const state_t STATE_AD = 2;
-const state_t PLAIN = 3;
-const state_t CIPHER = 4;
-const state_t TAG = 5;
-const state_t FINAL = 6;
+const state_t STATE_PT = 3;
+const state_t STATE_CT = 4;
+const state_t STATE_FIN = 5;
 
 struct ascon_t {
     bool    is_absorb_pt;

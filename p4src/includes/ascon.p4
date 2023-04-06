@@ -66,36 +66,36 @@ control ROUND(
         default_action = NoAction();
         const entries ={
             /* P12 */
-            (0, 0) : addition(0xf0);
-            (0, 1) : addition(0xe1);
-            (0, 2) : addition(0xd2);
-            (0, 3) : addition(0xc3);
-            (0, 4) : addition(0xb4);
-            (0, 5) : addition(0xa5);
-            (0, 6) : addition(0x96);
-            (0, 7) : addition(0x87);
-            (0, 8) : addition(0x78);
-            (0, 9) : addition(0x69);
-            (0, 10) : addition(0x5a);
-            (0, 11) : addition(0x4b);
+            (P12, 0) : addition(0xf0);
+            (P12, 1) : addition(0xe1);
+            (P12, 2) : addition(0xd2);
+            (P12, 3) : addition(0xc3);
+            (P12, 4) : addition(0xb4);
+            (P12, 5) : addition(0xa5);
+            (P12, 6) : addition(0x96);
+            (P12, 7) : addition(0x87);
+            (P12, 8) : addition(0x78);
+            (P12, 9) : addition(0x69);
+            (P12, 10) : addition(0x5a);
+            (P12, 11) : addition(0x4b);
 
             /* P8 */
-            (1, 0) : addition(0xb4);
-            (1, 0) : addition(0xa5);
-            (1, 0) : addition(0x96);
-            (1, 0) : addition(0x87);
-            (1, 0) : addition(0x78);
-            (1, 0) : addition(0x69);
-            (1, 0) : addition(0x5a);
-            (1, 0) : addition(0x4b);
+            (P8, 0) : addition(0xb4);
+            (P8, 0) : addition(0xa5);
+            (P8, 0) : addition(0x96);
+            (P8, 0) : addition(0x87);
+            (P8, 0) : addition(0x78);
+            (P8, 0) : addition(0x69);
+            (P8, 0) : addition(0x5a);
+            (P8, 0) : addition(0x4b);
 
             /* P6 */
-            (2, 0) : addition(0x96);
-            (2, 1) : addition(0x87);
-            (2, 2) : addition(0x78);
-            (2, 3) : addition(0x69);
-            (2, 4) : addition(0x5a);
-            (2, 5) : addition(0x4b);
+            (P6, 0) : addition(0x96);
+            (P6, 1) : addition(0x87);
+            (P6, 2) : addition(0x78);
+            (P6, 3) : addition(0x69);
+            (P6, 4) : addition(0x5a);
+            (P6, 5) : addition(0x4b);
         }
     } 
 
@@ -159,7 +159,7 @@ control ASCON_AEAD(
         init_1st_key_xor();
 
         hdr.ascon_meta.setValid();
-        hdr.ascon_meta.curr_state = INIT;
+        hdr.ascon_meta.curr_state = STATE_INIT;
         hdr.ascon_meta.next_state = STATE_AD;
         hdr.ascon_meta.round_type = P12;
         hdr.ascon_meta.curr_round = 0;
@@ -218,8 +218,8 @@ control ASCON_AEAD(
     table ascon_states {
         key = {
             hdr.ascon_meta.curr_state : exact;
-            hdr.ascon_meta.round_type : ternary;
-            hdr.ascon_meta.curr_round : ternary;
+            hdr.ascon_meta.round_type : exact;
+            hdr.ascon_meta.curr_round : exact;
         }
         actions = {
             absorb_ad;
