@@ -301,6 +301,7 @@ control AEAD_IG (
 
     apply{
         if(!hdr.ascon.isValid() && !hdr.ascon_meta.isValid()) {
+            // TODO: convert init to a table
             inititalize();
         }
         
