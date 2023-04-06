@@ -35,7 +35,22 @@ header udp_h {
 }
 
 header payload_h {
+#ifdef PAYLOAD_16B
     bit<64> p0;
+    bit<64> p1;
+#elif PAYLOAD_32B
+    bit<64> p0;
+    bit<64> p1;
+    bit<64> p2;
+    bit<64> p3;
+#else
+    bit<64> p0;
+#endif 
+}
+
+header tag_h {
+    bit<64> tag0;
+    bit<64> tag1;
 }
 
 header ascon_h {
@@ -47,14 +62,24 @@ header ascon_h {
 }
 
 header ascon_meta_h {
-    bit<8>      curr_state;
-    bit<8>      next_state;
-    bit<8>      round_type;
-    bit<8>      curr_round;
+    bit<8>  curr_state;
+    bit<8>  curr_round;
+    bit<4>  round_type;
+    bit<4>  num_pt_blocks;
 }
 
 header ascon_out_h {
+#ifdef PAYLOAD_16B
     bit<64> o0;
+    bit<64> o1;
+#elif PAYLOAD_32B
+    bit<64> o0;
+    bit<64> o1;
+    bit<64> o2;
+    bit<64> o3;
+#else
+    bit<64> o0;
+#endif
 }
 
 header ascon_tag_h {

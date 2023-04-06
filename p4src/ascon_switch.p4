@@ -18,7 +18,7 @@ control SwitchIngress(
     inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t ig_tm_md) {
     
-    ASCON_AEAD() ascon_aead;
+    AEAD_IG() ascon_aead;
 
     apply {
         ascon_aead.apply(hdr, local_md);
@@ -33,8 +33,10 @@ control SwitchEgress(
     inout egress_intrinsic_metadata_for_deparser_t eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t eg_oport_md) {
 
-    apply {
+    AEAD_EG() ascon_aead;
 
+    apply {
+        ascon_aead.apply(hdr, local_md);
     }
 }
 

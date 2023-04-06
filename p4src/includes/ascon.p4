@@ -10,11 +10,10 @@ const bit<64> IV = 0x80400c0600000000;
 #define N_0 0x0001020304050607
 #define N_1 0x08090A0B0C0D0E0F
 
-control ROUND(
+control ROUND (
     inout switch_header_t hdr,
     inout switch_local_metadata_t local_md
 ) {
-
     bit<64> t0 = 0;
     bit<64> t1 = 0;
     bit<64> t2 = 0;
@@ -81,13 +80,13 @@ control ROUND(
 
             /* P8 */
             (P8, 0) : addition(0xb4);
-            (P8, 0) : addition(0xa5);
-            (P8, 0) : addition(0x96);
-            (P8, 0) : addition(0x87);
-            (P8, 0) : addition(0x78);
-            (P8, 0) : addition(0x69);
-            (P8, 0) : addition(0x5a);
-            (P8, 0) : addition(0x4b);
+            (P8, 1) : addition(0xa5);
+            (P8, 2) : addition(0x96);
+            (P8, 3) : addition(0x87);
+            (P8, 4) : addition(0x78);
+            (P8, 5) : addition(0x69);
+            (P8, 6) : addition(0x5a);
+            (P8, 7) : addition(0x4b);
 
             /* P6 */
             (P6, 0) : addition(0x96);
@@ -99,11 +98,36 @@ control ROUND(
         }
     } 
 
-    apply {
-        // TODO: perform state transitions here
+    action state_transition_action(state_t next_state, round_type_t round_type) {
+        hdr.ascon_meta.curr_state = next_state;
+        hdr.ascon_meta.round_type = round_type;
+        hdr.ascon_meta.curr_round = 0;
+    }
+
+    action state_transition_default_action() {
         hdr.ascon_meta.curr_round = hdr.ascon_meta.curr_round + 1; 
+    }
 
+    table state_transition {
+        key = {
+            hdr.ascon_meta.curr_state : exact;
+            hdr.ascon_meta.round_type : exact;
+            hdr.ascon_meta.curr_round + 1 : exact @name("hdr.ascon_meta.curr_round");
+        }
+        actions = {
+            state_transition_action;
+            state_transition_default_action;
+        }
+        default_action = state_transition_default_action;
+        // const entries = {
+        //     (STATE_INIT, P12, 11)       : state_transition_action(STATE_AD, P6);
+        //     (STATE_AD_FINAL, P6, 5)     : state_transition_action(STATE_PT, P6);
+        //     (STATE_PT, P6, 5)           : state_transition_action(STATE_PT_FINAL, P12);
+        //     (STATE_PT_FINAL, P12, 11)   : state_transition_action(STATE_FINAL, P0);
+        // }
+    }
 
+    apply {
         /* addition of round constant */
         add_const.apply();
         
@@ -132,10 +156,12 @@ control ROUND(
 
         @in_hash{hdr.ascon.s4[63:32] = t4[63:32] ^ (t4[6:0]++t4[63:39]) ^ (t4[40:9]);}
         @in_hash{hdr.ascon.s4[31:0] = t4[31:0] ^ t4[38:7] ^ t4[8:0]++ t4[63:41];}   
+
+        state_transition.apply();
     }
 }
 
-control ASCON_AEAD(
+control AEAD_IG (
     inout switch_header_t hdr,
     inout switch_local_metadata_t local_md    
 ) {
@@ -160,7 +186,6 @@ control ASCON_AEAD(
 
         hdr.ascon_meta.setValid();
         hdr.ascon_meta.curr_state = STATE_INIT;
-        hdr.ascon_meta.next_state = STATE_AD;
         hdr.ascon_meta.round_type = P12;
         hdr.ascon_meta.curr_round = 0;
     }
@@ -169,8 +194,8 @@ control ASCON_AEAD(
     action absorb_ad() {
         init_2nd_key_xor();
 
-        // Note: we assume that AD is less than 63 bits      
-        hdr.ascon.s0[63:32] = hdr.ascon.s0[63:32] ^ AD;
+        // Note: we assume that the AD is 32 bits  
+        hdr.ascon.s0[63:32] = hdr.ascon.s0[63:32] ^ local_md.ascon.associated_data;
         hdr.ascon.s0[31:24] = hdr.ascon.s0[31:24] ^ 0x80;
     }
 
@@ -186,6 +211,40 @@ control ASCON_AEAD(
         hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.p0;
         local_md.ascon.is_absorb_pt = true;
     }
+
+#ifdef PAYLOAD_16B 
+    action absorb_pt2() {
+        domain_separation();
+
+        hdr.ascon_out.setValid();
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.p1;
+        local_md.ascon.is_absorb_pt2 = true;
+    }
+#elif PAYLOAD_32B
+    action absorb_pt2() {
+        domain_separation();
+
+        hdr.ascon_out.setValid();
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.p1;
+        local_md.ascon.is_absorb_pt2 = true;
+    }
+
+    action absorb_pt3() {
+        domain_separation();
+
+        hdr.ascon_out.setValid();
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.p2;
+        local_md.ascon.is_absorb_pt3 = true;
+    }
+
+    action absorb_pt4() {
+        domain_separation();
+
+        hdr.ascon_out.setValid();
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.p3;
+        local_md.ascon.is_absorb_pt4 = true;
+    }
+#endif
 
     /* final plaintext block */
     action final_1st_key_xor() {
@@ -206,6 +265,7 @@ control ASCON_AEAD(
 
     action finalize() {
         final_2nd_key_xor();
+        local_md.ascon.is_finalize = true;
     }
 
     /* set tag */
@@ -225,13 +285,16 @@ control ASCON_AEAD(
             absorb_ad;
             absorb_pt;
             absorb_pt_final;
+            finalize;
             NoAction;
         }
         default_action = NoAction();
-        const entries = {
-            (STATE_AD, P6, 0) : absorb_ad();
-            // TODO
-        }
+        // const entries = {
+        //     (STATE_AD_FINAL, P6, 0)     : absorb_ad();
+        //     (STATE_PT, P6, 0)           : absorb_pt();
+        //     (STATE_PT_FINAL, P12, 0)    : absorb_pt_final();
+        //     (STATE_FINAL, P0, 0)        : finalize();
+        // }
     }
 
     ROUND() ascon_round;
@@ -241,13 +304,46 @@ control ASCON_AEAD(
             inititalize();
         }
         
-        ascon_states.apply();
-        if(local_md.ascon.is_absorb_pt) {
-            hdr.ascon_out.o0 = hdr.ascon.s0;
-        } else if(local_md.ascon.is_finalize) {
-            set_tag();
+        if(ascon_states.apply().hit) {
+            if(local_md.ascon.is_absorb_pt) {
+                hdr.ascon_out.o0 = hdr.ascon.s0;
+            } 
+#ifdef PAYLOAD_16B
+            else if(local_md.ascon.is_absorb_pt2) {
+                hdr.ascon_out.o1 = hdr.ascon.s0;
+            }            
+#elif PAYLOAD_32B
+            else if(local_md.ascon.is_absorb_pt2) {
+                hdr.ascon_out.o1 = hdr.ascon.s0;
+            }
+            else if(local_md.ascon.is_absorb_pt3) {
+                hdr.ascon_out.o2 = hdr.ascon.s0;
+            }
+            else if(local_md.ascon.is_absorb_pt4) {
+                hdr.ascon_out.o3 = hdr.ascon.s0;
+            }            
+#endif
+            else if(local_md.ascon.is_finalize) {
+                set_tag();
+            }
         }
 
-        ascon_round.apply(hdr, local_md);
+        if(!local_md.ascon.is_finalize) {
+            ascon_round.apply(hdr, local_md);
+        }
+    }
+}
+
+control AEAD_EG (
+    inout switch_header_t hdr,
+    inout switch_local_metadata_t local_md    
+) {
+
+    ROUND() ascon_round;
+
+    apply {
+        if(hdr.ascon.isValid() && hdr.ascon_meta.isValid()) {
+            ascon_round.apply(hdr, local_md);
+        }
     }
 }
