@@ -210,7 +210,7 @@ control MyIngress(
             hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
             hdr.ascon_tag.tag0=hdr.ascon.s3;
             hdr.ascon_tag.tag1=hdr.ascon.s4;
-
+            hdr.ascon_tag.setValid();
             ig_tm_md.ucast_egress_port = eg_port;
             //reg.write(0,0xb);
         }

@@ -40,7 +40,6 @@
     }
 
     action abs_final(){
-        hdr.ascon.s0=hdr.ascon.s0^0x0;
         hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
         hdr.ascon.s1=hdr.ascon.s1^K_0;
         hdr.ascon.s2=hdr.ascon.s2^K_1;
