@@ -1,0 +1,8 @@
+ucli
+pm
+port-add 12/- 100G NONE
+port-add 4/- 100G NONE
+an-set -/- 2
+port-enb -/-
+exit
+exit
