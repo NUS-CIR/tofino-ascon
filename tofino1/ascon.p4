@@ -7,7 +7,7 @@
 
 // #include "loops_macro.h"
 
-#define eg_port 0x9; //fow h/w needs to be 0x4 
+#define eg_port 9; //fow h/w needs to be 0x4 
 #define recir_port 68;//for h/w needs to be a loopbacked port
 //new header for encrypton including length of msg to be encrypted
 
@@ -115,11 +115,12 @@ parser MyIngressParser(packet_in        pkt,
     // not emmiting it in the deparser
     state parse_length {
         pkt.extract(hdr.ascon_in_len);
-        transition select(hdr.ascon_in_len.wrd_len){
-            0x1: parse_payload_64;
-            // 0x2: parse_payload_128;
-            default:accept;
-        }
+        transition parse_payload_64;    
+        // transition select(hdr.ascon_in_len.wrd_len){
+        //     0x1: parse_payload_64;
+        //     // 0x2: parse_payload_128;
+        //     default:accept;
+        // }
 
     }
 
@@ -210,8 +211,9 @@ control MyIngress(
             hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
             hdr.ascon_tag.tag0=hdr.ascon.s3;
             hdr.ascon_tag.tag1=hdr.ascon.s4;
-
-            ig_tm_md.ucast_egress_port = eg_port;
+            hdr.ascon_tag.setValid();
+            ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
+            ig_tm_md.ucast_egress_port[6:0] = eg_port;
             //reg.write(0,0xb);
         }
         else{
