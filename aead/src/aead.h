@@ -65,7 +65,7 @@ int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
   }
   /* final plaintext block */
   s.x[0] ^= LOADBYTES(m, mlen);
-  STOREBYTES(c, s.x[0], mlen);
+  STOREBYTES(c, s.x[0], mlen);//we actually store 0 bytes here if payload is a 64 bit multiple
   s.x[0] ^= PAD(mlen);
   c += mlen;
   printstate("pad plaintext", &s);

@@ -16,7 +16,7 @@ void main()
     unsigned long long alen = 4;
     // unsigned long long mlen = 8;
     unsigned long long clen = CRYPTO_ABYTES;
-    unsigned long long mlen = 8;
+    unsigned long long mlen = 16;
     // unsigned long long len= (unsigned long long)strlen(in);
     printf("the LENGTH is %llu bytes\n", mlen);
 

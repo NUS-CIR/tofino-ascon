@@ -16,7 +16,7 @@
 const bit<32> AD = 0x00010203;
 const bit<64> IV = 0x80400c0600000000;
 // const bit<64> input_str=0x0001020304050607;//64 bit string input supported
-// const bit<128> input_str_2=0x000102030405060708090A0B0C0D0E0F;
+const bit<128> input_str_2=0x000102030405060708090A0B0C0D0E0F;
 
 #define K_0 0x0001020304050607;
 #define K_1 0x08090A0B0C0D0E0F;
@@ -49,6 +49,7 @@ header ascon_h {
 header ascon_out_h{
     bit<64>   o0;
     bit<64>   o1;
+    bit<64>   o2;
 }
 
 header ascon_tag_h{
@@ -61,17 +62,17 @@ header ascon_in_len_h {//will have to be just before the payload
     // bit<8> ad_len;
 } 
 
-header payload_64_h{
-    bit<64> input_str;
+header payload_192_h{
+    bit<192> input_str;
 }
 
 struct my_ingress_headers_t {
     ethernet_h   ethernet;
     ascon_h      ascon;
     ascon_out_h  ascon_out;
-    ascon_tag_h  ascon_tag;    
+    ascon_tag_h  ascon_tag;  
     ascon_in_len_h   ascon_in_len;
-    payload_64_h payload_64; 
+    payload_192_h payload_192; 
 }
 
 struct my_ingress_metadata_t {
@@ -115,30 +116,28 @@ parser MyIngressParser(packet_in        pkt,
     // not emmiting it in the deparser
     state parse_length {
         pkt.extract(hdr.ascon_in_len);
-        transition parse_payload_64;    
+        transition parse_payload_192;    
         // transition select(hdr.ascon_in_len.wrd_len){
-        //     0x1: parse_payload_64;
-        //     // 0x2: parse_payload_128;
+        //     0x1: parse_payload;
         //     default:accept;
         // }
-
     }
 
-    state parse_payload_64 {
-        pkt.extract(hdr.payload_64);
+    state parse_payload_192 {
+        pkt.extract(hdr.payload_192);
         transition accept;
     }
 
     state parse_ascon {
         pkt.extract(hdr.ascon_in_len);
-        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.payload_192);
         pkt.extract(hdr.ascon);
         transition accept;
     }
     
     state parse_ascon_out {
         pkt.extract(hdr.ascon_in_len);
-        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.payload_192);
         pkt.extract(hdr.ascon);
         pkt.extract(hdr.ascon_out);
         pkt.extract(hdr.ascon_tag);
@@ -159,6 +158,15 @@ control MyIngress(
     inout ingress_intrinsic_metadata_for_deparser_t  ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t        ig_tm_md)
 {   
+    // Register<bit<8>,bit<8>>(1,0x0) reg;
+    // // for verifying the round counts in recirc
+    // RegisterAction<bit<8>, bit<8>, bit<8>>(reg)
+    //     leave_data = {
+    //         void apply(inout bit<8> register_data) { 
+    //             register_data = register_data+1;
+    //         }
+    //     };
+    
      // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
@@ -167,7 +175,7 @@ control MyIngress(
         // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
     }
 
-    #include "ascon_actions.p4"
+    #include "ascon_actions_192.p4"
 
     apply {
         // saving the input string
@@ -182,24 +190,29 @@ control MyIngress(
             abs_ad();
         }
 
-        //after 18 rounds(the AD is absorbed)
+         //after 18 rounds(the AD is absorbed)
         if(hdr.ascon.curr_round==0x12){
             // hdr.ascon_out.o0=hdr.ascon.s0;
-            // hdr.ascon_out.o1=hdr.ascon.s0^0x0;
             abs_input_1();
             abs_input_2();
         }
+
         //check for 24th round after which the padding stage occurs     
         /* absorb final plaintext block */
         //   s.x[0] ^= LOADBYTES(in, len);
         //   s.x[0] ^= PAD(len);
         //   Currently working for only 8 byte string so can simply XOR with 0x80
-        if(hdr.ascon.curr_round==0x18){
+        // if(hdr.ascon.curr_round==0x18){
+        //     abs_input_3();
+        //     // abs_input_4();
+        // }
+
+        if(hdr.ascon.curr_round==0x24){
             abs_final();
         }
 
-        // check for final round(36th round) after tag finalization
-        if(hdr.ascon.curr_round==0x24){
+        // check for final round(48th round) after tag finalization
+        if(hdr.ascon.curr_round==0x30){
             // hdr.ethernet.ether_type=ETHERTYPE_NORM;
             // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
             // hdr.ascon.s0=hdr.ascon_out.o0;
@@ -234,7 +247,7 @@ control MyIngressDeparser(packet_out pkt,
     apply {
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.ascon_in_len);
-        pkt.emit(hdr.payload_64);
+        pkt.emit(hdr.payload_192);
         pkt.emit(hdr.ascon);
         pkt.emit(hdr.ascon_out);
         pkt.emit(hdr.ascon_tag);  
@@ -254,7 +267,7 @@ struct my_egress_headers_t {
     ascon_out_h ascon_out;
     ascon_tag_h  ascon_tag;  
     ascon_in_len_h ascon_in_len;
-    payload_64_h payload_64;
+    payload_192_h payload_192;
 }
 
     /********  G L O B A L   E G R E S S   M E T A D A T A  *********/
@@ -298,14 +311,14 @@ parser MyEgressParser(packet_in        pkt,
 
     state parse_ascon {
         pkt.extract(hdr.ascon_in_len);
-        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.payload_192);
         pkt.extract(hdr.ascon);
         transition accept;
     }
     
     state parse_ascon_out {
         pkt.extract(hdr.ascon_in_len);
-        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.payload_192);
         pkt.extract(hdr.ascon);
         pkt.extract(hdr.ascon_out);
         pkt.extract(hdr.ascon_tag);
@@ -325,13 +338,21 @@ control MyEgress(
     inout egress_intrinsic_metadata_for_deparser_t     eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t  eg_oport_md)
 {
-    #include "ascon_actions.p4"
-    apply {    
-        if(hdr.ascon.curr_round!=0x24){
+    #include "ascon_actions_192.p4"
+    apply {
+        if(hdr.ascon.curr_round!=0x30){
             #include "ascon_round1.p4"
             hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
             // #include "ascon_round2.p4"
             // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
+        if(hdr.ascon.curr_round==0x18){
+            abs_input_3();
+            abs_input_4();
+        }
+        if(hdr.ascon.curr_round==0x1E){
+            abs_input_5();
+            abs_input_6();
         }
     }
 }
@@ -348,10 +369,10 @@ control MyEgressDeparser(packet_out pkt,
     apply {
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.ascon_in_len);
-        pkt.emit(hdr.payload_64);
+        pkt.emit(hdr.payload_192);
         pkt.emit(hdr.ascon);
         pkt.emit(hdr.ascon_out);
-        pkt.emit(hdr.ascon_tag);
+        pkt.emit(hdr.ascon_tag); 
     }
 }
 
