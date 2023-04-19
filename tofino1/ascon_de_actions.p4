@@ -29,44 +29,16 @@
     action abs_input_1(){
         //domain seperation
         hdr.ascon.s4= hdr.ascon.s4^0x1;
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_256.input_str[127:64];
-    	// routing_decision();
-	}
-    action abs_input_2(){
-        hdr.ascon_out.o0=hdr.ascon.s0;
+        // hdr.ascon_out.o0=hdr.ascon.s0^input_str;
+        hdr.ascon_out.o0=hdr.ascon.s0^hdr.payload_192.input_str;
         hdr.ascon_out.setValid();
         hdr.ethernet.ether_type=ETHERTYPE_RECIR;
-    }
+        
 
-    action abs_input_3(){
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_256.input_str[63:0];
-    	
-        // hdr.ascon_out.o1=hdr.ascon.s0;
 	}
-
-    action abs_input_4(){
-        hdr.ascon_out.o1=hdr.ascon.s0;
-    }
-
-    action abs_input_5(){
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_256.input_str_2[127:64];
-    	
-        // hdr.ascon_out.o1=hdr.ascon.s0;
-	}
-
-    action abs_input_6(){
-        hdr.ascon_out.o2=hdr.ascon.s0;
-    }
-
-    action abs_input_7(){
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_256.input_str_2[63:0];
-    	
-        // hdr.ascon_out.o1=hdr.ascon.s0;
-	}
-    //maybe redundant
-    action abs_input_8(){
-        hdr.ascon_out.o3=hdr.ascon.s0;
-        // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
+    action abs_input_2(){
+        // hdr.ascon.s0= input_str;
+        hdr.ascon.s0= hdr.payload_192.input_str;
     }
 
     action abs_final(){
@@ -108,8 +80,8 @@
         meta.t0 = meta.t0 ^ meta.t4;
         meta.t3 = meta.t3 ^ meta.t2;
         meta.t2 = ~meta.t2;
-    }
-
+    }    
+    
     table add_const{
         key={
             hdr.ascon.curr_round:exact;
@@ -149,39 +121,18 @@
             22:addition(0x5a);
             23:addition(0x4b);
 
-            24:addition(0x96);
-            25:addition(0x87);
-            26:addition(0x78);
-            27:addition(0x69);
-            28:addition(0x5a);
-            29:addition(0x4b);
-
+            24:addition(0xf0);
+            25:addition(0xe1);
+            26:addition(0xd2);         
+            27:addition(0xc3);
+            28:addition(0xb4);
+            29:addition(0xa5);
             30:addition(0x96);
             31:addition(0x87);
             32:addition(0x78);
             33:addition(0x69);
             34:addition(0x5a);
-            35:addition(0x4b);
-
-            36:addition(0x96);
-            37:addition(0x87);
-            38:addition(0x78);
-            39:addition(0x69);
-            40:addition(0x5a);
-            41:addition(0x4b);
-
-            42:addition(0xf0);
-            43:addition(0xe1);
-            44:addition(0xd2);         
-            45:addition(0xc3);
-            46:addition(0xb4);
-            47:addition(0xa5);
-            48:addition(0x96);
-            49:addition(0x87);
-            50:addition(0x78);
-            51:addition(0x69);
-            52:addition(0x5a);
-            53:addition(0x4b);       
+            35:addition(0x4b);       
            
         }
     } 
@@ -196,7 +147,7 @@
         }
         size=64;
         const entries ={
-             0:addition(0xf0);
+            0:addition(0xf0);
             1:addition(0xe1);
             2:addition(0xd2);         
             3:addition(0xc3);
@@ -225,40 +176,55 @@
             22:addition(0x5a);
             23:addition(0x4b);
 
-            24:addition(0x96);
-            25:addition(0x87);
-            26:addition(0x78);
-            27:addition(0x69);
-            28:addition(0x5a);
-            29:addition(0x4b);
-
+            24:addition(0xf0);
+            25:addition(0xe1);
+            26:addition(0xd2);         
+            27:addition(0xc3);
+            28:addition(0xb4);
+            29:addition(0xa5);
             30:addition(0x96);
             31:addition(0x87);
             32:addition(0x78);
             33:addition(0x69);
             34:addition(0x5a);
             35:addition(0x4b);
-
-            36:addition(0x96);
-            37:addition(0x87);
-            38:addition(0x78);
-            39:addition(0x69);
-            40:addition(0x5a);
-            41:addition(0x4b);
-
-            42:addition(0xf0);
-            43:addition(0xe1);
-            44:addition(0xd2);         
-            45:addition(0xc3);
-            46:addition(0xb4);
-            47:addition(0xa5);
-            48:addition(0x96);
-            49:addition(0x87);
-            50:addition(0x78);
-            51:addition(0x69);
-            52:addition(0x5a);
-            53:addition(0x4b);  
                
            
         }
     } 
+
+    // action good_tag(){
+    //     hdr.ascon_out.o1=0x0;
+    // }
+
+    // action bad_tag(){
+    //     hdr.ascon_out.o1=bad_tag;
+    // }
+
+    // table verify_tag1{
+    //     key={
+    //         hdr.ascon.s3:exact;
+    //     }
+    //     actions={
+    //         NoAction;
+    //         @defaultonly bad_tag();
+    //     }
+    //     const entries={
+    //         hdr.payload_192.tag0:NoAction;
+    //     }
+    //     size=8;
+    // }
+
+    // table verify_tag2{
+    //     key={
+    //         hdr.ascon.s4:exact;
+    //     }
+    //     actions={
+    //         good_tag();
+    //         @defaultonly bad_tag();
+    //     }
+    //     const entries={
+    //         hdr.payload_192.tag1:good_tag();
+    //     }
+    //     size=8;
+    // }

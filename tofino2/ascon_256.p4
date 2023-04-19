@@ -6,7 +6,7 @@
 #endif
 
 #define eg_port 9; //fow h/w needs to be 0x4 
-#define recir_port 68;//for h/w needs to be a loopbacked port
+#define recir_port 6;//for h/w needs to be a loopbacked port
 
 const bit<32> AD = 0x00010203;
 const bit<64> IV = 0x80400c0600000000;
@@ -96,18 +96,18 @@ parser MyIngressParser(packet_in        pkt,
         transition select(hdr.ethernet.ether_type){
             // ETHERTYPE_FIRST:parse_length;
             ETHERTYPE_NORM:parse_ascon;
-            ETHERTYPE_PARSE:parse_payload;
+            // ETHERTYPE_PARSE:parse_payload;
             ETHERTYPE_RECIR:parse_ascon_out;
             default:accept;
         }
     }
 
-    state parse_payload {
-        pkt.extract(hdr.ascon);
-        pkt.extract(hdr.ascon_in_len);
-        pkt.extract(hdr.payload_256);
-        transition accept;
-    }
+    // state parse_payload {
+    //     pkt.extract(hdr.ascon);
+    //     pkt.extract(hdr.ascon_in_len);
+    //     pkt.extract(hdr.payload_256);
+    //     transition accept;
+    // }
 
     state parse_ascon {
         pkt.extract(hdr.ascon);
@@ -157,19 +157,18 @@ control MyIngress(
         if(hdr.ascon.curr_round==0xC){
             abs_ad();
         }
-         //after 18 rounds(the AD is absorbed)
-        if(hdr.ascon.curr_round==0x12){
-            // hdr.ascon_out.o0=hdr.ascon.s0;
-            abs_input_1();
-            abs_input_2();
+
+        if(hdr.ascon.curr_round==0x18){
+            abs_input_3();
+            abs_input_4();
         }
 
-        if(hdr.ascon.curr_round==0x2A){
-            abs_final();
-        }
-
-        // check for final round(54th round) after tag finalization
-        if(hdr.ascon.curr_round==0x36){
+        // check for final round(54th round) -2= 52 after tag finalization
+        if(hdr.ascon.curr_round==0x34){
+            #include  "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            #include  "ascon_round2.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
             hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
             hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
             hdr.ascon_tag.tag0=hdr.ascon.s3;
@@ -181,7 +180,13 @@ control MyIngress(
         }
         else{
             #include  "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            #include  "ascon_round2.p4"
             do_recirculate();
+        }
+
+        if(hdr.ascon.curr_round==0x12){
+            hdr.ethernet.ether_type= ETHERTYPE_PARSE;
         }
     }
 }
@@ -256,11 +261,18 @@ parser MyEgressParser(packet_in        pkt,
         transition select(hdr.ethernet.ether_type){
             // ETHERTYPE_FIRST:parse_length;
             ETHERTYPE_NORM:parse_ascon;
-            // ETHERTYPE_PARSE:parse_payload;
+            ETHERTYPE_PARSE:parse_payload;
             ETHERTYPE_RECIR:parse_ascon_out;
             // ETHERTYPE_FINAL:parse_ascon_tag;
             default:accept;
         }
+    }
+
+    state parse_payload {
+        pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_256);
+        transition accept;
     }
 
     state parse_ascon {
@@ -291,21 +303,28 @@ control MyEgress(
 {
     #include "ascon_actions_256.p4"
     apply {
-        if(hdr.ascon.curr_round!=0x36){
-            #include "ascon_round1.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        }
+        //after 18 rounds(the AD is absorbed)
         if(hdr.ascon.curr_round==0x12){
-            hdr.ethernet.ether_type= ETHERTYPE_PARSE;
-        }
-        if(hdr.ascon.curr_round==0x18){
-            abs_input_3();
-            abs_input_4();
+            // hdr.ascon_out.o0=hdr.ascon.s0;
+            abs_input_1();
+            abs_input_2();
         }
         if(hdr.ascon.curr_round==0x1E){
             abs_input_5();
             abs_input_6();
         }
+        //42
+        if(hdr.ascon.curr_round==0x2A){
+            abs_final();
+        }
+        //round no. 54
+        if(hdr.ascon.curr_round!=0x36){
+            #include "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            #include "ascon_round2.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
+
         if(hdr.ascon.curr_round==0x24){
             abs_input_7();
             abs_input_8();

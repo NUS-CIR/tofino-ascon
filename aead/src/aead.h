@@ -84,7 +84,7 @@ int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
   STOREBYTES(c + 8, s.x[4], 8);
 
   return 0;
-}
+}        // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
 
 int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
                         unsigned char* nsec, const unsigned char* c,
@@ -152,7 +152,7 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
   uint64_t c0 = LOADBYTES(c, clen);
   STOREBYTES(m, s.x[0] ^ c0, clen);
   s.x[0] = CLEARBYTES(s.x[0], clen);
-  s.x[0] |= c0;
+  s.x[0] |= c0;//its redundant in 0
   s.x[0] ^= PAD(clen);
   c += clen;
   printstate("pad ciphertext", &s);

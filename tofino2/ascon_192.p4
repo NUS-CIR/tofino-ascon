@@ -29,6 +29,7 @@ const bit<16> ETHERTYPE_NORM = 0x8120;
 const bit<16> ETHERTYPE_FIRST = 0x8122;
 const bit<16> ETHERTYPE_RECIR = 0x8133; //using custom ether_type for checking b/w a normal and a recirc packet
 const bit<16> ETHERTYPE_PARSE = 0x8134;
+const bit<16> ETHERTYPE_FINAL = 0x8135;
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
 
 header ethernet_h {
@@ -179,14 +180,14 @@ control MyIngress(
         }
 
         // check for final round(48th round) after tag finalization
-        if(hdr.ascon.curr_round==0x30){
-            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
-            hdr.ascon_tag.tag0=hdr.ascon.s3;
-            hdr.ascon_tag.tag1=hdr.ascon.s4;
-            hdr.ascon_tag.setValid();
+        if(hdr.ascon.curr_round==0x2c){
+            #include  "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            #include  "ascon_round2.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
             ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
             ig_tm_md.ucast_egress_port[6:0] = eg_port;
+            // hdr.ethernet.ether_type=ETHERTYPE_FINAL;
             //reg.write(0,0xb);
         }
         else{
@@ -272,6 +273,7 @@ parser MyEgressParser(packet_in        pkt,
             ETHERTYPE_NORM:parse_ascon;
             ETHERTYPE_PARSE:parse_payload;
             ETHERTYPE_RECIR:parse_ascon_out;
+            // ETHERTYPE_FINAL:parse_ascon_final;
             default:accept;
         }
     }
@@ -284,7 +286,8 @@ parser MyEgressParser(packet_in        pkt,
     }
 
     state parse_ascon {
-        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.ascon);
+        // pkt.extract(hdr.ascon_in_len);
         transition accept;
     }
     
@@ -294,6 +297,14 @@ parser MyEgressParser(packet_in        pkt,
         pkt.extract(hdr.payload_192);
         pkt.extract(hdr.ascon_out);
         // pkt.extract(hdr.ascon_tag);
+        transition accept;
+    }
+    state parse_ascon_final {
+        pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_192);
+        pkt.extract(hdr.ascon_out);
+        pkt.extract(hdr.ascon_tag);
         transition accept;
     }
 }
@@ -323,11 +334,22 @@ control MyEgress(
             abs_input_5();
             abs_input_6();
         }
-        if(hdr.ascon.curr_round!=0x30){
+        if(hdr.ascon.curr_round!=0x2E){
             #include "ascon_round1.p4"
             hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
             #include "ascon_round2.p4"
             hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
+        else{
+            #include "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            #include "ascon_round2.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
+            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
+            hdr.ascon_tag.tag0=hdr.ascon.s3;
+            hdr.ascon_tag.tag1=hdr.ascon.s4;
+            hdr.ascon_tag.setValid();
         }
         
         
