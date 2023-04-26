@@ -13,6 +13,7 @@
 		hdr.ascon.curr_round =0x0;
         hdr.ethernet.ether_type=ETHERTYPE_NORM;
         hdr.ascon.setValid();
+        // hdr.ascon_out.o0=hdr.ascon.s0;
     }
 
     //absorb AD
@@ -21,10 +22,12 @@
         hdr.ascon.s3= hdr.ascon.s3^ K_0;
         hdr.ascon.s4= hdr.ascon.s4^ K_1;
         //XOR with 0 has no effect on the rest 32 bits
-        hdr.ascon.s0[63:32]= hdr.ascon.s0[63:32]^ AD;
-        hdr.ascon.s0[31:24]=hdr.ascon.s0[31:24]^0x80;
+        hdr.ascon.s0= hdr.ascon.s0^ AD[127:64];
     }
 
+    action fin_ad(){
+        hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
+    }
     //absorb plaintext
     action abs_input_1(){
         //domain seperation
@@ -89,7 +92,7 @@
         }
         size=64;
         const entries ={
-             0:addition(0xf0);
+            0:addition(0xf0);
             1:addition(0xe1);
             2:addition(0xd2);         
             3:addition(0xc3);
@@ -118,18 +121,32 @@
             22:addition(0x5a);
             23:addition(0x4b);
 
-            24:addition(0xf0);
-            25:addition(0xe1);
-            26:addition(0xd2);         
-            27:addition(0xc3);
-            28:addition(0xb4);
-            29:addition(0xa5);
+            24:addition(0x96);
+            25:addition(0x87);
+            26:addition(0x78);
+            27:addition(0x69);
+            28:addition(0x5a);
+            29:addition(0x4b);
+
             30:addition(0x96);
             31:addition(0x87);
             32:addition(0x78);
             33:addition(0x69);
             34:addition(0x5a);
-            35:addition(0x4b);       
+            35:addition(0x4b);
+
+            36:addition(0xf0);
+            37:addition(0xe1);
+            38:addition(0xd2);         
+            39:addition(0xc3);
+            40:addition(0xb4);
+            41:addition(0xa5);
+            42:addition(0x96);
+            43:addition(0x87);
+            44:addition(0x78);
+            45:addition(0x69);
+            46:addition(0x5a);
+            47:addition(0x4b);       
            
         }
     } 
@@ -173,19 +190,32 @@
             22:addition(0x5a);
             23:addition(0x4b);
 
-            24:addition(0xf0);
-            25:addition(0xe1);
-            26:addition(0xd2);         
-            27:addition(0xc3);
-            28:addition(0xb4);
-            29:addition(0xa5);
+            24:addition(0x96);
+            25:addition(0x87);
+            26:addition(0x78);
+            27:addition(0x69);
+            28:addition(0x5a);
+            29:addition(0x4b);
+
             30:addition(0x96);
             31:addition(0x87);
             32:addition(0x78);
             33:addition(0x69);
             34:addition(0x5a);
             35:addition(0x4b);
-               
+
+            36:addition(0xf0);
+            37:addition(0xe1);
+            38:addition(0xd2);         
+            39:addition(0xc3);
+            40:addition(0xb4);
+            41:addition(0xa5);
+            42:addition(0x96);
+            43:addition(0x87);
+            44:addition(0x78);
+            45:addition(0x69);
+            46:addition(0x5a);
+            47:addition(0x4b);     
            
         }
     } 

@@ -8,7 +8,7 @@
 // #include "loops_macro.h"
 
 #define eg_port 9; //fow h/w needs to be 0x4 
-#define recir_port 6;//for h/w needs to be a loopbacked port
+#define recir_port 68;//for h/w needs to be a loopbacked port
 //new header for encrypton including length of msg to be encrypted
 
 //the 320 bit IV is fixed after the first round of Perms 
@@ -116,6 +116,11 @@ parser MyIngressParser(packet_in        pkt,
     state parse_length {
         pkt.extract(hdr.ascon_in_len);
         transition parse_payload_64;    
+        // transition select(hdr.ascon_in_len.wrd_len){
+        //     0x1: parse_payload_64;
+        //     // 0x2: parse_payload_128;
+        //     default:accept;
+        // }
 
     }
 
@@ -156,7 +161,7 @@ control MyIngress(
 {   
      // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
-        // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
         ig_tm_md.ucast_egress_port[6:0] = recir_port;
         // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
@@ -193,10 +198,6 @@ control MyIngress(
             abs_final();
         }
 
-        #include  "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        #include  "ascon_round2.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         // check for final round(36th round) after tag finalization
         if(hdr.ascon.curr_round==0x24){
             // hdr.ethernet.ether_type=ETHERTYPE_NORM;
@@ -213,7 +214,7 @@ control MyIngress(
             //reg.write(0,0xb);
         }
         else{
-            // #include  "ascon_round1.p4"
+            #include  "ascon_round1.p4"
             // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
             // #include  "ascon_round2.p4"
             do_recirculate();
@@ -248,13 +249,25 @@ control MyIngressDeparser(packet_out pkt,
     /***********************  H E A D E R S  ************************/
 
 struct my_egress_headers_t {
-
+    ethernet_h   ethernet;
+    ascon_h      ascon;
+    ascon_out_h ascon_out;
+    ascon_tag_h  ascon_tag;  
+    ascon_in_len_h ascon_in_len;
+    payload_64_h payload_64;
 }
 
     /********  G L O B A L   E G R E S S   M E T A D A T A  *********/
 
 struct my_egress_metadata_t {
+    bit<64> t0;
+    bit<64> t1;
+    bit<64> t2;
+    bit<64> t3;
+    bit<64> t4;
 
+    bit<64> p;   
+    bit<64> q;
 }
 
     /***********************  P A R S E R  **************************/
@@ -269,6 +282,33 @@ parser MyEgressParser(packet_in        pkt,
     /* This is a mandatory state, required by Tofino Architecture */
     state start {
         pkt.extract(eg_intr_md);
+        transition parse_ethernet;
+    }
+
+    state parse_ethernet {
+        pkt.extract(hdr.ethernet);
+        // transition parse_ascon;
+        
+        transition select(hdr.ethernet.ether_type){
+            ETHERTYPE_NORM:parse_ascon;
+            ETHERTYPE_RECIR:parse_ascon_out;
+            default:accept;
+        }
+    }
+
+    state parse_ascon {
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.ascon);
+        transition accept;
+    }
+    
+    state parse_ascon_out {
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_out);
+        pkt.extract(hdr.ascon_tag);
         transition accept;
     }
 }
@@ -285,7 +325,14 @@ control MyEgress(
     inout egress_intrinsic_metadata_for_deparser_t     eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t  eg_oport_md)
 {
+    #include "ascon_actions.p4"
     apply {    
+        if(hdr.ascon.curr_round!=0x24){
+            #include "ascon_round1.p4"
+            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            // #include "ascon_round2.p4"
+            // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        }
     }
 }
 
@@ -299,7 +346,12 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr);
+        pkt.emit(hdr.ethernet);
+        pkt.emit(hdr.ascon_in_len);
+        pkt.emit(hdr.payload_64);
+        pkt.emit(hdr.ascon);
+        pkt.emit(hdr.ascon_out);
+        pkt.emit(hdr.ascon_tag);
     }
 }
 

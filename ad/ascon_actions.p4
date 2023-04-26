@@ -13,6 +13,7 @@
 		hdr.ascon.curr_round =0x0;
         hdr.ethernet.ether_type=ETHERTYPE_NORM;
         hdr.ascon.setValid();
+        // hdr.ascon_out.o0=hdr.ascon.s0;
     }
 
     //absorb AD

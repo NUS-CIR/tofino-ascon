@@ -7,9 +7,7 @@
 
 // #include "loops_macro.h"
 
-#define eg_port 9; //fow h/w needs to be 0x4 
-#define recir_port 6;//for h/w needs to be a loopbacked port
-//new header for encrypton including length of msg to be encrypted
+#define eg_port 64; //fow h/w needs to be 0x8
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
@@ -56,9 +54,9 @@ header ascon_tag_h{
     bit<64> tag1;
 }
 
-header ascon_in_len_h {//will have to be just before the payload
+header ascon_in_len_h {
     bit<8> wrd_len;
-    // bit<8> ad_len;
+
 } 
 
 header payload_64_h{
@@ -115,7 +113,7 @@ parser MyIngressParser(packet_in        pkt,
     // not emmiting it in the deparser
     state parse_length {
         pkt.extract(hdr.ascon_in_len);
-        transition parse_payload_64;    
+        transition parse_payload_64;   
 
     }
 
@@ -154,69 +152,65 @@ control MyIngress(
     inout ingress_intrinsic_metadata_for_deparser_t  ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t        ig_tm_md)
 {   
-     // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
+    action multicast(MulticastGroupId_t mcast_grp) {
+        ig_tm_md.mcast_grp_a = mcast_grp;
+        // ig_tm_md.level2_exclusion_id = 0xFF;
+    }
+
+    action drop() {
+        ig_dprsr_md.drop_ctl = 1;
+    }
+
+    // recirculate:increases round no., changes ether_type and assigns to recirc port(Port 6)
     action do_recirculate(){
-        // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
-        ig_tm_md.ucast_egress_port[6:0] = recir_port;
+        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+        
+        // ig_tm_md.ucast_egress_port[6:0] = recir_port;
         // hdr.ethernet.ether_type=ETHERTYPE_RECIR;
     }
 
     #include "ascon_actions.p4"
 
     apply {
-        // saving the input string
-        // leave_data.execute();
-
-        //Initialization for the first packet
-        if(hdr.ethernet.ether_type==ETHERTYPE_FIRST){
-            ascon_init();
-        }
-        //after 12 rounds for initialization
-        if(hdr.ascon.curr_round==0xC){
-            abs_ad();
+        if(ig_intr_md.ingress_port[6:0]==64){
+            drop();
         }
 
-        //after 18 rounds(the AD is absorbed)
-        if(hdr.ascon.curr_round==0x12){
-            // hdr.ascon_out.o0=hdr.ascon.s0;
-            // hdr.ascon_out.o1=hdr.ascon.s0^0x0;
-            abs_input_1();
-            abs_input_2();
-        }
-        //check for 24th round after which the padding stage occurs     
-        /* absorb final plaintext block */
-        //   s.x[0] ^= LOADBYTES(in, len);
-        //   s.x[0] ^= PAD(len);
-        //   Currently working for only 8 byte string so can simply XOR with 0x80
-        if(hdr.ascon.curr_round==0x18){
-            abs_final();
-        }
+        if(ig_intr_md.ingress_port!=8){
+            //Initialization for the first packet
+            if(hdr.ethernet.ether_type==ETHERTYPE_FIRST){
+                ascon_init();
+            }
+            //after 12 rounds for initialization
+            if(hdr.ascon.curr_round==0xC){
+                abs_ad();
+            }
 
-        #include  "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        #include  "ascon_round2.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        // check for final round(36th round) after tag finalization
-        if(hdr.ascon.curr_round==0x24){
-            // hdr.ethernet.ether_type=ETHERTYPE_NORM;
-            // ig_tm_md.ucast_egress_port =(bit<9>)hdr.ascon.dest_port;
-            // hdr.ascon.s0=hdr.ascon_out.o0;
-            //could have had a store here
-            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
-            hdr.ascon_tag.tag0=hdr.ascon.s3;
-            hdr.ascon_tag.tag1=hdr.ascon.s4;
-            hdr.ascon_tag.setValid();
-            ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
-            ig_tm_md.ucast_egress_port[6:0] = eg_port;
-            //reg.write(0,0xb);
+            if(hdr.ascon.curr_round==0x18){
+                abs_final();
+            }
+
+            // check for final round(36th round) after tag finalization
+            if(hdr.ascon.curr_round==0x24){
+                hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
+                hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
+                hdr.ascon_tag.tag0=hdr.ascon.s3;
+                hdr.ascon_tag.tag1=hdr.ascon.s4;
+                hdr.ascon_tag.setValid();
+                ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
+                ig_tm_md.ucast_egress_port[6:0] = eg_port;
+                //reg.write(0,0xb);
+            }
+            else{
+                #include  "ascon_round1.p4"
+                hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+                #include  "ascon_round2.p4"
+                hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+                //ig_tm_md.ucast_egress_port = ig_intr_md.ingress_port;
+            }
         }
         else{
-            // #include  "ascon_round1.p4"
-            // hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-            // #include  "ascon_round2.p4"
-            do_recirculate();
+            multicast(16); // assigning the node value as 5
         }
     }
 }
@@ -248,13 +242,25 @@ control MyIngressDeparser(packet_out pkt,
     /***********************  H E A D E R S  ************************/
 
 struct my_egress_headers_t {
-
+    ethernet_h   ethernet;
+    ascon_h      ascon;
+    ascon_out_h ascon_out;
+    ascon_tag_h  ascon_tag;  
+    ascon_in_len_h ascon_in_len;
+    payload_64_h payload_64;
 }
 
     /********  G L O B A L   E G R E S S   M E T A D A T A  *********/
 
 struct my_egress_metadata_t {
+    bit<64> t0;
+    bit<64> t1;
+    bit<64> t2;
+    bit<64> t3;
+    bit<64> t4;
 
+    bit<64> p;   
+    bit<64> q;
 }
 
     /***********************  P A R S E R  **************************/
@@ -269,6 +275,33 @@ parser MyEgressParser(packet_in        pkt,
     /* This is a mandatory state, required by Tofino Architecture */
     state start {
         pkt.extract(eg_intr_md);
+        transition parse_ethernet;
+    }
+
+    state parse_ethernet {
+        pkt.extract(hdr.ethernet);
+        // transition parse_ascon;
+        
+        transition select(hdr.ethernet.ether_type){
+            ETHERTYPE_NORM:parse_ascon;
+            ETHERTYPE_RECIR:parse_ascon_out;
+            default:accept;
+        }
+    }
+
+    state parse_ascon {
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.ascon);
+        transition accept;
+    }
+    
+    state parse_ascon_out {
+        pkt.extract(hdr.ascon_in_len);
+        pkt.extract(hdr.payload_64);
+        pkt.extract(hdr.ascon);
+        pkt.extract(hdr.ascon_out);
+        pkt.extract(hdr.ascon_tag);
         transition accept;
     }
 }
@@ -285,7 +318,24 @@ control MyEgress(
     inout egress_intrinsic_metadata_for_deparser_t     eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t  eg_oport_md)
 {
+    #include "ascon_actions.p4"
     apply {    
+
+        if(hdr.ethernet.ether_type!=ETHERTYPE_FIRST){
+            if(hdr.ascon.curr_round==0x12){
+                // hdr.ascon_out.o0=hdr.ascon.s0;
+                // hdr.ascon_out.o1=hdr.ascon.s0^0x0;
+                abs_input_1();
+                abs_input_2();
+            }
+            if(hdr.ascon.curr_round!=0x24){
+                #include "ascon_round1.p4"
+                hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+                #include "ascon_round2.p4"
+                hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
+            }
+        }
+        
     }
 }
 
@@ -299,7 +349,12 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr);
+        pkt.emit(hdr.ethernet);
+        pkt.emit(hdr.ascon_in_len);
+        pkt.emit(hdr.payload_64);
+        pkt.emit(hdr.ascon);
+        pkt.emit(hdr.ascon_out);
+        pkt.emit(hdr.ascon_tag);
     }
 }
 

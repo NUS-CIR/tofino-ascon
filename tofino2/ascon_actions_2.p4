@@ -29,7 +29,7 @@
     action abs_input_1(){
         //domain seperation
         hdr.ascon.s4= hdr.ascon.s4^0x1;
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_64.input_str;
+        hdr.ascon.s0= hdr.ascon.s0^input_str;
     	// routing_decision();
 	}
     action abs_input_2(){

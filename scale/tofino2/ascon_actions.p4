@@ -1,4 +1,8 @@
-  //a fixed initialization stage
+    Random< bit<1> >() rng;
+    Random< bit<2> >() rng_2;
+    Random< bit<3> >() rng_3;
+    Random< bit<4> >() rng_4;
+    // a fixed initialization stage
     action ascon_init(){
         //this remains same regardless of the key or i/p size
 
@@ -15,7 +19,7 @@
         hdr.ascon.setValid();
     }
 
-    //absorb AD
+    // absorb AD
     action abs_ad(){
         //XORing the 32bit AD with s0
         hdr.ascon.s3= hdr.ascon.s3^ K_0;
@@ -25,7 +29,7 @@
         hdr.ascon.s0[31:24]=hdr.ascon.s0[31:24]^0x80;
     }
 
-    //absorb plaintext
+    // absorb plaintext
     action abs_input_1(){
         //domain seperation
         hdr.ascon.s4= hdr.ascon.s4^0x1;
@@ -44,7 +48,7 @@
         hdr.ascon.s2=hdr.ascon.s2^K_1;
     }
 
-    //constant addition at the start of round using a table
+    // constant addition at the start of round using a table
     action addition(bit<64> const_i) {
         hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;
     }

@@ -223,7 +223,7 @@ control MyIngress(
             if(meta.rnd_bit == 2){
 			    ig_tm_md.ucast_egress_port[6:0] = 68 + 2;
             }
-            else{
+            if(meta.rnd_bit == 3){
 			    ig_tm_md.ucast_egress_port[6:0] = 68 + 3;
             }
         }

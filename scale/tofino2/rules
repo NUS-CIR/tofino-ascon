@@ -1,0 +1,17 @@
+# 1 bfrt
+#   2 bfrt
+# bfrt.pre.node.entry(16, 16, [], [9,10,11,12]).push()
+#   4 
+#   5 bfrt.pre.mgid.entry(16, [16], [False], [0]).push()
+#   6 bfrt.pre.node.dump()
+#   7 bfrt.pre.mgid.dump()
+#   8 exit
+#   9 exit
+
+# bfrt.pre.node.entry(16, 16, [], [9,10,11,12]).push()
+# bfrt.pre.mgid.entry(16, [16], [False], [0]).push()
+
+# port-add 1/- 10G none
+# port-loopback 1/- mac-near
+# an-set -/- 2
+# port-enb -/-
