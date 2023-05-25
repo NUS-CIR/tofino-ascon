@@ -1,0 +1,6 @@
+1. Go into p4src and compile the ascon.p4 file-
+    Sample command- ~/tools/p4_build.sh -p ascon.p4
+
+2. Run the start_model.sh and start_switch.sh shell scripts one after other respectively
+
+3. Run run_test.sh

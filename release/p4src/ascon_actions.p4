@@ -1,8 +1,7 @@
-  //a fixed initialization stage
+// Fixed initialization stage
 action ascon_init(){
-        //this remains same regardless of the key or i/p size
-
-        //x0=bc830fbef3a1651b x1=487a66865036b909 x2=a031b0c5810c1cd6 x3=dd7ce72083702217 x4=9b17156ede557ce6
+    // this remains same regardless of the key or i/p size
+    // x0=bc830fbef3a1651b x1=487a66865036b909 x2=a031b0c5810c1cd6 x3=dd7ce72083702217 x4=9b17156ede557ce6
     // keeping till after the 2nd key xor + domain seperation into account
     hdr.ascon.s0= IV;
     hdr.ascon.s1= K_0;   
@@ -29,14 +28,38 @@ action abs_ad(){
 action abs_input_1(){
     // domain seperation
     hdr.ascon.s4= hdr.ascon.s4 ^ 0x1;
-    hdr.ascon.s0= hdr.ascon.s0^ hdr.payload_64.input_str;
-}
-action abs_input_2(){
-    hdr.ascon_out.o0=hdr.ascon.s0;
-    hdr.ascon_out.setValid();
-    hdr.ethernet.ether_type=ETHERTYPE_RECIR;
+    hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[{{payload_byte*8-1}}:{{(payload_byte-1)*8}}];
 }
 
+action abs_input_2(){
+    hdr.ascon_out.o0= hdr.ascon.s0;
+    hdr.ascon_out.setValid();
+    hdr.ethernet.ether_type= ETHERTYPE_RECIR;
+}
+
+action abs_input_3(){
+    hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload[{{(payload_byte-1)*8-1}}:{{(payload_byte-2)*8}}];
+}
+
+action abs_input_4(){
+    hdr.ascon_out.o1= hdr.ascon.s0;
+}
+
+action abs_input_5(){
+    hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload[{{(payload_byte-2)*8-1}}:{{(payload_byte-3)*8}}];
+}
+
+action abs_input_6(){
+    hdr.ascon_out.o2= hdr.ascon.s0;
+}
+
+action abs_input_7(){
+    hdr.ascon.s0= hdr.ascon.s0^ hdr.payload[{{(payload_byte-3)*8-1}}:0];
+}
+
+action abs_input_8(){
+    hdr.ascon_out.o3=hdr.ascon.s0;
+}
 action abs_final(){
     hdr.ascon.s0[63:56]=hdr.ascon.s0[63:56]^0x80;
     hdr.ascon.s1=hdr.ascon.s1^K_0;
@@ -51,7 +74,6 @@ action addition(bit<64> const_i) {
 action substitution() {
     hdr.ascon.s0 = hdr.ascon.s0 ^ hdr.ascon.s4;
     hdr.ascon.s4 = hdr.ascon.s4 ^ hdr.ascon.s3;
-    //  hdr.ascon.s2 = hdr.ascon.s2 ^ const_i;              //TODO:depends on implementation
     hdr.ascon.s2 = hdr.ascon.s2 ^ hdr.ascon.s1;
 }
 
@@ -79,61 +101,6 @@ action end_sbox() {
 }
 
 table add_const{
-    key={
-        hdr.ascon.curr_round:exact;
-    }
-    actions= {
-        addition(); 
-        @defaultonly NoAction;
-    }
-    size=64;
-    const entries ={
-            0:addition(0xf0);
-        1:addition(0xe1);
-        2:addition(0xd2);         
-        3:addition(0xc3);
-        4:addition(0xb4);
-        5:addition(0xa5);
-        6:addition(0x96);
-        7:addition(0x87);
-        8:addition(0x78);
-        9:addition(0x69);
-        10:addition(0x5a);
-        11:addition(0x4b);
-
-
-        12:addition(0x96);
-        13:addition(0x87);
-        14:addition(0x78);
-        15:addition(0x69);
-        16:addition(0x5a);
-        17:addition(0x4b);
-
-
-        18:addition(0x96);
-        19:addition(0x87);
-        20:addition(0x78);
-        21:addition(0x69);
-        22:addition(0x5a);
-        23:addition(0x4b);
-
-        24:addition(0xf0);
-        25:addition(0xe1);
-        26:addition(0xd2);         
-        27:addition(0xc3);
-        28:addition(0xb4);
-        29:addition(0xa5);
-        30:addition(0x96);
-        31:addition(0x87);
-        32:addition(0x78);
-        33:addition(0x69);
-        34:addition(0x5a);
-        35:addition(0x4b);       
-        
-    }
-} 
-
-    table add_const2{
     key={
         hdr.ascon.curr_round:exact;
     }
@@ -183,8 +150,7 @@ table add_const{
         32:addition(0x78);
         33:addition(0x69);
         34:addition(0x5a);
-        35:addition(0x4b);
-            
+        35:addition(0x4b);       
         
     }
 } 
