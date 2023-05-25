@@ -131,26 +131,85 @@ table add_const{
         16:addition(0x5a);
         17:addition(0x4b);
 
+    {% for i in range(payload_byte/8) %}
+        18 + i*6:addition(0x96);
+        19 + i*6:addition(0x87);
+        20 + i*6:addition(0x78);
+        21 + i*6:addition(0x69);
+        22 + i*6:addition(0x5a);
+        23 + i*6:addition(0x4b);
+    {% endfor %}
 
-        18:addition(0x96);
-        19:addition(0x87);
-        20:addition(0x78);
-        21:addition(0x69);
-        22:addition(0x5a);
-        23:addition(0x4b);
+    
+        {{18 + payload_byte*6}}:addition(0xf0);
+        {{18 + payload_byte*6 + 1}}:addition(0xe1);
+        {{18 + payload_byte*6 + 2}}:addition(0xd2);         
+        {{18 + payload_byte*6 + 3}}:addition(0xc3);
+        {{18 + payload_byte*6 + 4}}:addition(0xb4);
+        {{18 + payload_byte*6 + 5}}:addition(0xa5);
+        {{18 + payload_byte*6 + 6}}:addition(0x96);
+        {{18 + payload_byte*6 + 7}}:addition(0x87);
+        {{18 + payload_byte*6 + 8}}:addition(0x78);
+        {{18 + payload_byte*6 + 9}}:addition(0x69);
+        {{18 + payload_byte*6 + 10}}:addition(0x5a);
+        {{18 + payload_byte*6 + 11}}:addition(0x4b);       
+        
+    }
+} 
 
-        24:addition(0xf0);
-        25:addition(0xe1);
-        26:addition(0xd2);         
-        27:addition(0xc3);
-        28:addition(0xb4);
-        29:addition(0xa5);
-        30:addition(0x96);
-        31:addition(0x87);
-        32:addition(0x78);
-        33:addition(0x69);
-        34:addition(0x5a);
-        35:addition(0x4b);       
+table add_const2{
+    key={
+        hdr.ascon.curr_round:exact;
+    }
+    actions= {
+        addition(); 
+        @defaultonly NoAction;
+    }
+    size=64;
+    const entries ={
+        0:addition(0xf0);
+        1:addition(0xe1);
+        2:addition(0xd2);         
+        3:addition(0xc3);
+        4:addition(0xb4);
+        5:addition(0xa5);
+        6:addition(0x96);
+        7:addition(0x87);
+        8:addition(0x78);
+        9:addition(0x69);
+        10:addition(0x5a);
+        11:addition(0x4b);
+
+
+        12:addition(0x96);
+        13:addition(0x87);
+        14:addition(0x78);
+        15:addition(0x69);
+        16:addition(0x5a);
+        17:addition(0x4b);
+
+    {% for i in range(payload_byte/8) %}
+        18 + i*6:addition(0x96);
+        19 + i*6:addition(0x87);
+        20 + i*6:addition(0x78);
+        21 + i*6:addition(0x69);
+        22 + i*6:addition(0x5a);
+        23 + i*6:addition(0x4b);
+    {% endfor %}
+
+    
+        {{18 + payload_byte*6}}:addition(0xf0);
+        {{18 + payload_byte*6 + 1}}:addition(0xe1);
+        {{18 + payload_byte*6 + 2}}:addition(0xd2);         
+        {{18 + payload_byte*6 + 3}}:addition(0xc3);
+        {{18 + payload_byte*6 + 4}}:addition(0xb4);
+        {{18 + payload_byte*6 + 5}}:addition(0xa5);
+        {{18 + payload_byte*6 + 6}}:addition(0x96);
+        {{18 + payload_byte*6 + 7}}:addition(0x87);
+        {{18 + payload_byte*6 + 8}}:addition(0x78);
+        {{18 + payload_byte*6 + 9}}:addition(0x69);
+        {{18 + payload_byte*6 + 10}}:addition(0x5a);
+        {{18 + payload_byte*6 + 11}}:addition(0x4b);       
         
     }
 } 
