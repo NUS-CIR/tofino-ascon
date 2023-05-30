@@ -6,8 +6,8 @@
 #endif
 
 // define the port resp. for Tf1 and Tf2
-#define eg_port 9; // for h/w 0x4 
-#define recir_port 68;// for h/w loopbacked port
+#define eg_port 9; 
+#define recir_port 6;// for h/w loopbacked port
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
@@ -50,8 +50,6 @@ header ascon_h {
 header ascon_out_h{
     // Output ciph_text
     bit<64>   o0;
-    bit<64>   o1;
-    bit<64>   o2;
 }
 
 header ascon_tag_h{
@@ -61,7 +59,8 @@ header ascon_tag_h{
 
 header payload_h{
     // Payload header
-    bit<192> input_str;
+    bit<64> input_str;
+    
 }
 
 struct my_ingress_headers_t {
@@ -144,21 +143,9 @@ control MyIngress(
     action abs_input_1(){
         // domain seperation
         hdr.ascon.s4= hdr.ascon.s4 ^ 0x1;
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[191:128];
-    }
-
-    action abs_input_3(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[127:64];
-    }
-    action abs_input_4(){
-        hdr.ascon_out.o1= hdr.ascon.s0;
-    }
-    action abs_input_5(){
         hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[63:0];
     }
-    action abs_input_6(){
-        hdr.ascon_out.o2= hdr.ascon.s0;
-    }
+
 
     // recirculate: increases round num and assigns to recirc port
     action do_recirculate(){
@@ -176,9 +163,10 @@ control MyIngress(
         }
         size=64;
         const entries ={
+
             0:addition(0xf0);
             1:addition(0xe1);
-            2:addition(0xd2);         
+            2:addition(0xd2);
             3:addition(0xc3);
             4:addition(0xb4);
             5:addition(0xa5);
@@ -188,43 +176,35 @@ control MyIngress(
             9:addition(0x69);
             10:addition(0x5a);
             11:addition(0x4b);
+
             12:addition(0x96);
             13:addition(0x87);
             14:addition(0x78);
             15:addition(0x69);
             16:addition(0x5a);
             17:addition(0x4b);
+
             18:addition(0x96);
             19:addition(0x87);
             20:addition(0x78);
             21:addition(0x69);
             22:addition(0x5a);
             23:addition(0x4b);
-            24:addition(0x96);
-            25:addition(0x87);
-            26:addition(0x78);
-            27:addition(0x69);
-            28:addition(0x5a);
-            29:addition(0x4b);
+         
+
+            24:addition(0xf0);
+            25:addition(0xe1);
+            26:addition(0xd2);
+            27:addition(0xc3);
+            28:addition(0xb4);
+            29:addition(0xa5);
             30:addition(0x96);
             31:addition(0x87);
             32:addition(0x78);
             33:addition(0x69);
             34:addition(0x5a);
             35:addition(0x4b);
-            36:addition(0xf0);
-            37:addition(0xe1);
-            38:addition(0xd2);         
-            39:addition(0xc3);
-            40:addition(0xb4);
-            41:addition(0xa5);
-            42:addition(0x96);
-            43:addition(0x87);
-            44:addition(0x78);
-            45:addition(0x69);
-            46:addition(0x5a);
-            47:addition(0x4b);       
-            
+        
         }
     }
 
@@ -244,24 +224,23 @@ control MyIngress(
 
         // absorb final plaintext block, currently working for only multiple of 8 bytes PT so can simply XOR with 0x80
     
-        if(hdr.ascon.curr_round == 36){
+        if(hdr.ascon.curr_round == 24){
             abs_final();
         }
 
         #include  "ascon_round1.p4"
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        if(hdr.ascon.curr_round == 47) {             
+        do_recirculate();
+        if(hdr.ascon.curr_round == 36) {   
+            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
+            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
+            hdr.ascon_tag.tag0=hdr.ascon.s3;
+            hdr.ascon_tag.tag1=hdr.ascon.s4;
+            hdr.ascon_tag.setValid();
             ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
             ig_tm_md.ucast_egress_port[6:0] = eg_port;
         }
-        else{
-            do_recirculate();
-        }
-
-
-        if(hdr.ascon.curr_round == 18){
-            hdr.ethernet.ether_type= ETHERTYPE_PARSE;
-        }
+        
 
     }
 }
@@ -336,14 +315,14 @@ parser MyEgressParser(packet_in        pkt,
         }
     }
 
-    state parse_payload {
+    state parse_ascon {
         pkt.extract(hdr.ascon);
-        pkt.extract(hdr.payload);
         transition accept;
     }
 
-    state parse_ascon {
+    state parse_payload {
         pkt.extract(hdr.ascon);
+        pkt.extract(hdr.payload);
         transition accept;
     }
     
@@ -371,96 +350,21 @@ control MyEgress(
     // includes the ASCON actions and tables
     #include "ascon_actions.p4"
 
-     action abs_input_1(){
+    action abs_input_1(){
         // domain seperation
         hdr.ascon.s4= hdr.ascon.s4 ^ 0x1;
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[191:128];
-    }
-    action abs_input_3(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[127:64];
-    }
-    action abs_input_4(){
-        hdr.ascon_out.o1= hdr.ascon.s0;
-    }
-
-    action abs_input_5(){
         hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[63:0];
     }
-    action abs_input_6(){
-        hdr.ascon_out.o2= hdr.ascon.s0;
-    }
 
-    table add_const{
-        key={
-            hdr.ascon.curr_round:exact;
-        }
-        actions= {
-            addition(); 
-            @defaultonly NoAction;
-        }
-        size=64;
-        const entries ={
-            0:addition(0xf0);
-            1:addition(0xe1);
-            2:addition(0xd2);         
-            3:addition(0xc3);
-            4:addition(0xb4);
-            5:addition(0xa5);
-            6:addition(0x96);
-            7:addition(0x87);
-            8:addition(0x78);
-            9:addition(0x69);
-            10:addition(0x5a);
-            11:addition(0x4b);
-            12:addition(0x96);
-            13:addition(0x87);
-            14:addition(0x78);
-            15:addition(0x69);
-            16:addition(0x5a);
-            17:addition(0x4b);
-            18:addition(0x96);
-            19:addition(0x87);
-            20:addition(0x78);
-            21:addition(0x69);
-            22:addition(0x5a);
-            23:addition(0x4b);
-            24:addition(0x96);
-            25:addition(0x87);
-            26:addition(0x78);
-            27:addition(0x69);
-            28:addition(0x5a);
-            29:addition(0x4b);
-            30:addition(0x96);
-            31:addition(0x87);
-            32:addition(0x78);
-            33:addition(0x69);
-            34:addition(0x5a);
-            35:addition(0x4b);
-            36:addition(0xf0);
-            37:addition(0xe1);
-            38:addition(0xd2);         
-            39:addition(0xc3);
-            40:addition(0xb4);
-            41:addition(0xa5);
-            42:addition(0x96);
-            43:addition(0x87);
-            44:addition(0x78);
-            45:addition(0x69);
-            46:addition(0x5a);
-            47:addition(0x4b);       
-            
-        }
-    }
+
 
 
     apply {
-
-        // absorb final plaintext block, currently working for only multiple of 8 bytes PT so can simply XOR with 0x80
-
-    #include  "ascon_round1.p4"
-    hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-
-    
+        // after 12 rounds for initialization
+        if(hdr.ascon.curr_round == 12){
+            abs_ad();
+        }
+        
     }
 }
 
@@ -474,11 +378,7 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr.ethernet);
-        pkt.emit(hdr.ascon);
-        pkt.emit(hdr.payload);
-        pkt.emit(hdr.ascon_out);
-        pkt.emit(hdr.ascon_tag);  
+        pkt.emit(hdr);
     }
 }
 

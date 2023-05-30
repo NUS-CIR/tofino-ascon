@@ -22,6 +22,7 @@ action abs_ad(){
     // XOR with 0 has no effect on the rest 32 bits
     hdr.ascon.s0[63:32]= hdr.ascon.s0[63:32]^ AD;
     hdr.ascon.s0[31:24]=hdr.ascon.s0[31:24]^0x80;
+    hdr.ethernet.ether_type=ETHERTYPE_PARSE;
 }
 
 // Absorb plaintext

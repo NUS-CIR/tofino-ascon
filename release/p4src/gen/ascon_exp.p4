@@ -1,6 +1,3 @@
-{% if False %}
-	#error This is a code template, not a P4 program. Please use the accompanying code generator. 
-{% endif %}
 #include <core.p4>
 #if __TARGET_TOFINO__ == 2
 #include <t2na.p4>
@@ -9,13 +6,8 @@
 #endif
 
 // define the port resp. for Tf1 and Tf2
-{% if model == 1 %}
 #define eg_port 9; // for h/w 0x4 
 #define recir_port 68;// for h/w loopbacked port
-{% else %}
-#define eg_port 9; 
-#define recir_port 6;// for h/w loopbacked port
-{% endif %}
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
@@ -57,9 +49,10 @@ header ascon_h {
 
 header ascon_out_h{
     // Output ciph_text
-{% for i in range(0,payload_byte,1) %}
-    bit<64>   o{{i}};
-{% endfor %}
+    bit<64>   o0;
+    bit<64>   o1;
+    bit<64>   o2;
+    bit<64>   o3;
 }
 
 header ascon_tag_h{
@@ -69,14 +62,9 @@ header ascon_tag_h{
 
 header payload_h{
     // Payload header
-{% if payload_byte < 3 %}
-    bit<{{payload_byte*64}}> input_str;
-    {% set payd_small = payload_byte %}
-{% else %}
-    {% set payd_small = 2 %}
     bit<128> input_str; 
-    bit<{{(payload_byte-2)*64}}> input_str_2;
-{% endif %}    
+    bit<128> input_str_2;
+    
 }
 
 struct my_ingress_headers_t {
@@ -159,33 +147,27 @@ control MyIngress(
     action abs_input_1(){
         // domain seperation
         hdr.ascon.s4= hdr.ascon.s4 ^ 0x1;
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[{{payd_small*64-1}}:{{(payd_small-1)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[127:64];
     }
 
-{% if  payload_byte> 1 %}
     action abs_input_3(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[{{(payd_small-1)*64-1}}:{{(payd_small-2)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[63:0];
     }
     action abs_input_4(){
         hdr.ascon_out.o1= hdr.ascon.s0;
     }
-{% endif %}
-{% if  payload_byte> 2 %}
     action abs_input_5(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str_2[{{(payload_byte-2)*64-1}}:{{(payload_byte-3)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str_2[127:64];
     }
     action abs_input_6(){
         hdr.ascon_out.o2= hdr.ascon.s0;
     }
-{% endif %}
-{% if  payload_byte> 3 %}
     action abs_input_7(){
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload.input_str_2[{{(payload_byte-3)*64-1}}:0];
+        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload.input_str_2[63:0];
     }
     action abs_input_8(){
         hdr.ascon_out.o3=hdr.ascon.s0;
     }
-{% endif %}
 
     // recirculate: increases round num and assigns to recirc port
     action do_recirculate(){
@@ -204,59 +186,68 @@ control MyIngress(
         size=64;
         const entries ={
 
-        {% for i in range(12) %}
-            {{ i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
+            0:addition(0xf0);
+            1:addition(0xe1);
+            2:addition(0xd2);
+            3:addition(0xc3);
+            4:addition(0xb4);
+            5:addition(0xa5);
+            6:addition(0x96);
+            7:addition(0x87);
+            8:addition(0x78);
+            9:addition(0x69);
+            10:addition(0x5a);
+            11:addition(0x4b);
 
-        {% for i in range(6) %}
-            {{ 12 + i }}:addition(0x{{ '%x'|format(0x96 - i*0xf) }});
-        {% endfor %}
+            12:addition(0x96);
+            13:addition(0x87);
+            14:addition(0x78);
+            15:addition(0x69);
+            16:addition(0x5a);
+            17:addition(0x4b);
 
-    {% for i in range(0,payload_byte,1) %}
-        {% for j in range(6) %}
-            {{ 18 + j + i*6}}:addition(0x{{ '%x'|format(0x96 - j*0xf) }});
-        {% endfor %}
-    {% endfor %}         
+            18:addition(0x96);
+            19:addition(0x87);
+            20:addition(0x78);
+            21:addition(0x69);
+            22:addition(0x5a);
+            23:addition(0x4b);
+            24:addition(0x96);
+            25:addition(0x87);
+            26:addition(0x78);
+            27:addition(0x69);
+            28:addition(0x5a);
+            29:addition(0x4b);
+            30:addition(0x96);
+            31:addition(0x87);
+            32:addition(0x78);
+            33:addition(0x69);
+            34:addition(0x5a);
+            35:addition(0x4b);
+            36:addition(0x96);
+            37:addition(0x87);
+            38:addition(0x78);
+            39:addition(0x69);
+            40:addition(0x5a);
+            41:addition(0x4b);
+         
 
-        {% for i in range(12) %}
-            {{ 18 + payload_byte*6 + i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
+            42:addition(0xf0);
+            43:addition(0xe1);
+            44:addition(0xd2);
+            45:addition(0xc3);
+            46:addition(0xb4);
+            47:addition(0xa5);
+            48:addition(0x96);
+            49:addition(0x87);
+            50:addition(0x78);
+            51:addition(0x69);
+            52:addition(0x5a);
+            53:addition(0x4b);
         
         }
     }
 
-{% if rpp > 3%}
-    table add_const2{
-        key={
-            hdr.ascon.curr_round:exact;
-        }
-        actions= {
-            addition(); 
-            @defaultonly NoAction;
-        }
-        size=64;
-        const entries ={
-        {% for i in range(12) %}
-            {{ i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
-        
-        {% for i in range(6) %}
-            {{ 12 + i }}:addition(0x{{ '%x'|format(0x96 - i*0xf) }});
-        {% endfor %}
-
-    {% for i in range(0,payload_byte,1) %}
-        {% for j in range(6) %}
-            {{ 18 + j + i*6}}:addition(0x{{ '%x'|format(0x96 - j*0xf) }});
-        {% endfor %}
-    {% endfor %}         
-
-        {% for i in range(12) %}
-            {{ 18 + payload_byte*6 + i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
-        
-        }
-    } 
-{% endif %}
 
     apply {
 
@@ -265,73 +256,32 @@ control MyIngress(
             ascon_init();
         }
 
-    {% if 18%rpp == 0%}
         // after 18 rounds(the AD is absorbed)
         if(hdr.ascon.curr_round == 18){
             abs_input_1();
             abs_input_2();
         }
-    {% endif %}
 
         // absorb final plaintext block, currently working for only multiple of 8 bytes PT so can simply XOR with 0x80
-    {% if (18 + payload_byte*6)%rpp == 0 %}    
-        if(hdr.ascon.curr_round == {{18 + payload_byte*6}}){
+    
+        if(hdr.ascon.curr_round == 42){
             abs_final();
         }
-    {% endif %}
 
-{% if rpp < 3 %}
         #include  "ascon_round1.p4"
         hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
         do_recirculate();
-        if(hdr.ascon.curr_round == {{30 + payload_byte*6 - (rpp/2)|int }}) {   
-        {% if rpp == 1%}
+        if(hdr.ascon.curr_round == 54) {   
             hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
             hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
             hdr.ascon_tag.tag0=hdr.ascon.s3;
             hdr.ascon_tag.tag1=hdr.ascon.s4;
             hdr.ascon_tag.setValid();
-        {% endif %}
             ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
             ig_tm_md.ucast_egress_port[6:0] = eg_port;
         }
         
 
-{% elif rpp == 3 %}
-        #include  "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        #include  "ascon_round2.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        if(hdr.ascon.curr_round == {{30 + payload_byte*6 - 1}}) {     
-            ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
-            ig_tm_md.ucast_egress_port[6:0] = eg_port;
-        }
-        else{
-            do_recirculate();
-        }
-
-{% else %}
-    {# Only in case of 4 rpp with 16 and 32 byte #}
-        #include  "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        #include  "ascon_round2.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-
-        if(hdr.ascon.curr_round == {{30 + payload_byte*6}}){   
-        {% if (30 + payload_byte*6)%rpp != 0  %}
-            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
-            hdr.ascon_tag.tag0=hdr.ascon.s3;
-            hdr.ascon_tag.tag1=hdr.ascon.s4;
-            hdr.ascon_tag.setValid();
-        {% endif %}    
-            ig_tm_md.ucast_egress_port[8:7] = ig_intr_md.ingress_port[8:7];
-            ig_tm_md.ucast_egress_port[6:0] = eg_port;
-        }
-        else{
-            do_recirculate();
-        }
-{% endif %}
     }
 }
 
@@ -443,189 +393,48 @@ control MyEgress(
     action abs_input_1(){
         // domain seperation
         hdr.ascon.s4= hdr.ascon.s4 ^ 0x1;
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[{{payd_small*64-1}}:{{(payd_small-1)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[127:64];
     }
 
-{% if  payload_byte> 1 %}
     action abs_input_3(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[{{(payd_small-1)*64-1}}:{{(payd_small-2)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str[63:0];
     }
     action abs_input_4(){
         hdr.ascon_out.o1= hdr.ascon.s0;
     }
-{% endif %}
-{% if  payload_byte> 2 %}
     action abs_input_5(){
-        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str_2[{{(payload_byte-2)*64-1}}:{{(payload_byte-3)*64}}];
+        hdr.ascon.s0= hdr.ascon.s0 ^ hdr.payload.input_str_2[127:64];
     }
     action abs_input_6(){
         hdr.ascon_out.o2= hdr.ascon.s0;
     }
-{% endif %}
-{% if  payload_byte> 3 %}
     action abs_input_7(){
-        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload.input_str_2[{{(payload_byte-3)*64-1}}:0];
+        hdr.ascon.s0= hdr.ascon.s0^ hdr.payload.input_str_2[63:0];
     }
     action abs_input_8(){
         hdr.ascon_out.o3=hdr.ascon.s0;
     }
-{% endif %}
 
-{% if rpp > 1%}
-    table add_const{
-        key={
-            hdr.ascon.curr_round:exact;
-        }
-        actions= {
-            addition(); 
-            @defaultonly NoAction;
-        }
-        size=64;
-        const entries ={
-             {% for i in range(12) %}
-            {{ i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
 
-        {% for i in range(6) %}
-            {{ 12 + i }}:addition(0x{{ '%x'|format(0x96 - i*0xf) }});
-        {% endfor %}
-
-    {% for i in range(0,payload_byte,1) %}
-        {% for j in range(6) %}
-            {{ 18 + j + i*6}}:addition(0x{{ '%x'|format(0x96 - j*0xf) }});
-        {% endfor %}
-
-    {% endfor %}         
-
-        {% for i in range(12) %}
-            {{ 18 + payload_byte*6 + i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
-        }
-    }
-{% endif %}
-
-{% if rpp == 4%}
-    table add_const2{
-        key={
-            hdr.ascon.curr_round:exact;
-        }
-        actions= {
-            addition(); 
-            @defaultonly NoAction;
-        }
-        size=64;
-        const entries ={
-         {% for i in range(12) %}
-            {{ i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
-
-        {% for i in range(6) %}
-            {{ 12 + i }}:addition(0x{{ '%x'|format(0x96 - i*0xf) }});
-        {% endfor %}
-
-    {% for i in range(0,payload_byte,1) %}
-        {% for j in range(6) %}
-            {{ 18 + j + i*6}}:addition(0x{{ '%x'|format(0x96 - j*0xf) }});
-        {% endfor %}
-    {% endfor %}         
-
-        {% for i in range(12) %}
-            {{ 18 + payload_byte*6 + i }}:addition(0x{{ '%x'|format(0xf0 - i*0xf) }});
-        {% endfor %}
-        }
-    } 
-{% endif %}
 
     apply {
-{% if rpp>1 %}
-    {% if 18%rpp != 0%}
-        // after 18 rounds(the AD is absorbed)
-        if(hdr.ascon.curr_round == 18){
-            abs_input_1();
-            abs_input_2();
-        }
-      {% if payload_byte>2 %}
-        if(hdr.ascon.curr_round == 30){
-            abs_input_5();
-            abs_input_6();
-        }
-      {% endif %}
-    {% endif %}
-
-        // absorb final plaintext block, currently working for only multiple of 8 bytes PT so can simply XOR with 0x80
-    {% if (18 + payload_byte*6)%rpp != 0 %}    
-        if(hdr.ascon.curr_round == {{18 + payload_byte*6}}){
-            abs_final();
-        }
-    {% endif %}
-
-  {# in 2/3 rpp egress always just does 1 ASCON round #}
-
-  {% if rpp < 4 %}
-        #include  "ascon_round1.p4"
-        hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        if(hdr.ascon.curr_round == {{30 + payload_byte*6}}){   
-            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
-            hdr.ascon_tag.tag0=hdr.ascon.s3;
-            hdr.ascon_tag.tag1=hdr.ascon.s4;
-            hdr.ascon_tag.setValid();
-        }
-  {#case for 4 rpp#}  
-  {% else %}
-    {% if (30 + payload_byte*6)%rpp == 0 %}
-        // check for final round after tag finalization
-        if(hdr.ascon.curr_round == {{30 + payload_byte*6 - 2}}){
-            #include  "ascon_round1.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round + 0x1;
-            #include  "ascon_round2.p4"    
-            hdr.ascon.curr_round=hdr.ascon.curr_round + 0x1;
-
-            hdr.ascon.s3=hdr.ascon.s3 ^ K_0; 
-            hdr.ascon.s4 =hdr.ascon.s4 ^ K_1;
-            hdr.ascon_tag.tag0=hdr.ascon.s3;
-            hdr.ascon_tag.tag1=hdr.ascon.s4;
-            hdr.ascon_tag.setValid();
-        }
-        else{
-            #include  "ascon_round1.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-            #include  "ascon_round2.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        }
-
-    {% else %}
-        if(hdr.ascon.curr_round != {{30 + payload_byte*6}}){
-            #include  "ascon_round1.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-            #include  "ascon_round2.p4"
-            hdr.ascon.curr_round=hdr.ascon.curr_round +0x1;
-        }
-    {% endif %}
-  {% endif %}
-{% endif %}
         // after 12 rounds for initialization
         if(hdr.ascon.curr_round == 12){
             abs_ad();
         }
-    {% if payload_byte>1 %}
-        if(hdr.ascon.curr_round == 24){
+        if(hdr.ascon.curr_round == 24 ){
             abs_input_3();
             abs_input_4();
         }
-    {% endif %}        
-    {% if((18%rpp == 0) and (payload_byte> 2)) %}
+        
         if(hdr.ascon.curr_round == 30){
             abs_input_5();
             abs_input_6();
         }
-    {% endif %}
-    {% if payload_byte>3 %}
-        if(hdr.ascon.curr_round == 36){
+        if(hdr.ascon.curr_round == 36 ){
             abs_input_7();
             abs_input_8();
         }
-    {% endif %}
     }
 }
 
@@ -639,15 +448,7 @@ control MyEgressDeparser(packet_out pkt,
     in    egress_intrinsic_metadata_for_deparser_t  eg_dprsr_md)
 {
     apply {
-    {% if rpp>1 %}
-        pkt.emit(hdr.ethernet);
-        pkt.emit(hdr.ascon);
-        pkt.emit(hdr.payload);
-        pkt.emit(hdr.ascon_out);
-        pkt.emit(hdr.ascon_tag);  
-    {% else %}
         pkt.emit(hdr);
-    {% endif %}
     }
 }
 
