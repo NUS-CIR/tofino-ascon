@@ -6,8 +6,8 @@
 #endif
 
 // define the port resp. for Tf1 and Tf2
-#define eg_port 9; 
-#define recir_port 6;// for h/w loopbacked port
+#define eg_port 9; // for h/w 0x4 
+#define recir_port 68;// for h/w loopbacked port
 
 //the 320 bit IV is fixed after the first round of Perms 
 //ee9398aadb67f03d 8bb21831c60f1002 b48a92db98d5da62 43189921b8f8e3e8 348fa5c9d525e140
