@@ -1,0 +1,52 @@
+ucli
+pm
+port-add 15/- 100G NONE
+port-add 16/- 100G NONE
+port-add 1/- 100G NONE
+port-add 2/- 100G NONE
+port-add 3/- 100G NONE
+port-add 4/- 100G NONE
+port-add 5/- 100G NONE
+port-add 6/- 100G NONE
+port-add 7/- 100G NONE
+port-add 8/- 100G NONE
+port-add 9/- 100G NONE
+port-add 10/- 100G NONE
+port-add 11/- 100G NONE
+port-add 12/- 100G NONE
+port-add 13/- 100G NONE
+port-add 14/- 100G NONE
+port-add 25/- 100G NONE
+port-add 26/- 100G NONE
+port-add 27/- 100G NONE
+port-add 28/- 100G NONE
+port-add 29/- 100G NONE
+port-add 30/- 100G NONE
+port-add 31/- 100G NONE
+port-add 32/- 100G NONE
+port-loopback 1/0 mac-near
+port-loopback 2/0 mac-near
+port-loopback 3/0 mac-near
+port-loopback 4/0 mac-near
+port-loopback 5/0 mac-near
+port-loopback 6/0 mac-near
+port-loopback 7/0 mac-near
+port-loopback 8/0 mac-near
+port-loopback 9/0 mac-near
+port-loopback 10/0 mac-near
+port-loopback 11/0 mac-near
+port-loopback 12/0 mac-near
+port-loopback 13/0 mac-near
+port-loopback 14/0 mac-near
+port-loopback 25/0 mac-near
+port-loopback 26/0 mac-near
+port-loopback 27/0 mac-near
+port-loopback 28/0 mac-near
+port-loopback 29/0 mac-near
+port-loopback 30/0 mac-near
+port-loopback 31/0 mac-near
+port-loopback 32/0 mac-near
+an-set -/- 2
+port-enb -/-
+exit
+exit

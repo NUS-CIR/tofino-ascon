@@ -1,0 +1,24 @@
+ucli
+pm
+port-add 15/- 100G NONE
+port-add 16/- 100G NONE
+port-add 18/- 100G NONE
+port-add 19/- 100G NONE
+port-add 20/- 100G NONE
+port-add 21/- 100G NONE
+port-add 22/- 100G NONE
+port-add 23/- 100G NONE
+port-add 24/- 100G NONE
+port-add 9/- 100G NONE
+port-loopback 18/0 mac-near
+port-loopback 19/0 mac-near
+port-loopback 20/0 mac-near
+port-loopback 21/0 mac-near
+port-loopback 22/0 mac-near
+port-loopback 23/0 mac-near
+port-loopback 24/0 mac-near
+port-loopback 9/0 mac-near
+an-set -/- 2
+port-enb -/-
+exit
+exit
