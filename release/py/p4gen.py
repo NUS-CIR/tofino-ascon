@@ -3,13 +3,6 @@ import json
 import jinja2
 import math
 
-# class SetModelAction(argparse.Action):
-#     def __call__(self, parser, namespace, values, option_string=None):
-#         print(option_string)
-#         if option_string == '--tf1_rpp':
-#             setattr(namespace, 'tofino_model', 1)
-#         elif option_string == '--tf2_rpp':
-#             setattr(namespace, 'tofino_model', 2)
 parser = argparse.ArgumentParser(description="ASCON Parser")
 
 parser.add_argument("template_filename", metavar="template_filename", type=str,

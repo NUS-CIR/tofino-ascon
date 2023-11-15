@@ -1,6 +1,12 @@
-1. Go into p4src and compile the ascon.p4 file-
-    Sample command- ~/tools/p4_build.sh -p ascon.p4
+# RELEASE
 
-2. Run the start_model.sh and start_switch.sh shell scripts one after other respectively
+## Jinja template for generating different ASCON configs
+* To generate a different configuration we use `run_jinja.sh`, can make changes to the configuration as per 
 
-3. Run run_test.sh
+
+## Run specific instructions
+
+* Go into p4src and compile the ascon.p4 file -->
+        Sample command- `~/tools/p4_build.sh -p ascon.p4`
+* Run the `start_model.sh` and `start_switch.sh` shell scripts one after other respectively
+* Run `run_test.sh`
