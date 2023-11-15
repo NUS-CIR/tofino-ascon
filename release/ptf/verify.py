@@ -93,5 +93,4 @@ class Ascon(P4ProgramTest):
         verify_packet(self, expt_pkt, egress_port)
         print("\nVerified Packet received on port %d" % egress_port)
 
-
         ############# That's it! ##############
